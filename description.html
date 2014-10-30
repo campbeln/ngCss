@@ -1,0 +1,329 @@
+<html ng-app="ngCn">
+    <head>
+        <title>ngCss Example Page</title>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+        <style ng-css="{ script: true, live: true, importScope: 'liveExample', commented: true, crlf: true }"  type="text/css">
+            /*
+                <script>
+                    $scope.css.body = {
+                        color: "black"
+                    };
+
+                    $scope.css.tableTd = {
+                        padding: "2px",
+                        backgroundColor: "white"
+                    };
+
+                    $scope.css.mixin = {
+                        border: "none",
+                        backgroundColor: "#eeeeee"
+                    };
+
+                    $scope.css.table = {
+                        $selector: "table",
+                        padding: $scope.css.tableTd.padding,    //# Note that this value is not re-bound when `$scope.css.tableTd.padding` is updated as its *value* was copied into `$scope.css.table.padding` rather than a *reference*.
+                        mixin: $scope.css.mixin                 //# In order to get values to re-bind on update, you need to ensure you are setting a *reference*, such as is being done on this line.
+                    };
+                </script>
+            */
+            body {
+                color: /*{{css.body.color}}*/;
+            }
+
+            /*{{css.table | css}}*/
+                table td {
+                    /*{{css.tableTd | cssInline}}*/
+                    border: /*{{css.mixin.border}}*/;
+                }
+
+            div.example {
+                margin: 0 2% 0 2%;
+            }
+
+                div.example iframe {
+                    height: 300px;
+                    width: 100%;
+                }
+
+                div.example h5 {
+                    display: inline;
+                    border: 1px solid black;
+                    padding: 3px;
+                    cursor: pointer;
+                }
+
+                    div.example h5.active {
+                        background-color: /*{{css.mixin.backgroundColor}}*/;
+                    }
+
+            pre {
+                display: inline;
+            }
+            pre, blockquote {
+                border: /*{{css.mixin.border}}*/;
+                background-color: /*{{css.mixin.backgroundColor}}*/;
+            }
+            em {
+                border: /*{{css.mixin.border}}*/;
+            }
+            em.comment {
+                color: green;
+            }
+            em.script {
+                color: maroon;
+            }
+            em.footnote {
+                font-size: 80%;
+            }
+            em.ng {
+                background-color: /*{{css.mixin.backgroundColor}}*/;
+            }
+                em.ng:after {
+                    content: "}}";
+                }
+                em.ng:before {
+                    content: "{{";
+                }
+            pre.i {
+                font-style: italic;
+            }
+                pre.i:before {
+                    content: "[";
+                }
+                pre.i:after {
+                    content: "]";
+                }
+            blockquote strong {
+                background-color: cornsilk;
+            }
+        </style>
+
+        <script type="text/javascript" src="js/angular.min.js"></script>
+        <script type="text/javascript" src="js/cnNg.module.ngCss.js"></script>
+        <script type="text/javascript">
+            //# Setup the required globals
+            var ngCn = angular.module("ngCn", ['ngCss']);
+
+            //# Define Angular page .controller
+            ngCn.controller('ExampleController', function ($scope, $rootScope) {
+                //# 
+                $scope.css = {};
+
+                //# 
+                $scope.ex = {
+                    defaultOptions: "e",
+                    defaultOptionsLink: "e",
+                    live: "e",
+                    named: "e",
+                    script: "e"
+                };
+            }); //# ngCn.controller('ExampleController'...
+        </script>
+    </head>
+    <body>
+        <form id="neek">
+            <h1>ngCss</h1>
+            <h2>Angular binding in CSS.</h2>
+            ngCss is a tiny* Angular Module+Filters that enables binding of <em class="ng">strings</em> and <em class="ng">objects</em> (including nested objects) within CSS.
+            <br /><em class="footnote">* Minified+compressed script under 1,700 bytes</em>
+            
+            <h3>Features:</h3>
+            <ul>
+                <li>CSS can be live-bound (changes in <pre>$scope</pre> are <pre>$watch</pre>'ed) or updated via the custom <pre>$broadcast</pre> event <em>updateCss</em>.</li>
+                <li><em>css</em> and <em>cssInline</em> Filters output Javascript/JSON <pre>objects</pre> as CSS to enable mixins, including the ability to nest <pre>objects</pre>.</li>
+                <li><pre>$scope</pre> can be initilized within the CSS itself, allowing for all CSS-related information to be co-located within the *.css or STYLE element.</li>
+                <li><pre>$scope</pre> can be isolated or imported from any Angular <pre>$element</pre> (via <pre>angular.element($element).scope()</pre>).</li>
+            </ul>
+
+            <h3>Examples:</h3>
+            <h4>Simple Default Options Example (STYLE element):</h4>
+            <div class="example">
+                <iframe ng-show="ex.defaultOptions === 'e'" src="examples/defaultoptions.html"></iframe>
+                <iframe ng-show="ex.defaultOptions === 's'" src="examples/defaultoptions.src.html"></iframe>
+                <h5 ng-click="ex.defaultOptions = 'e'" ng-class="ex.defaultOptions === 'e' ? 'active' : ''">Example</h5>
+                <h5 ng-click="ex.defaultOptions = 's'" ng-class="ex.defaultOptions === 's' ? 'active' : ''">Source</h5>
+            </div>
+
+            <h4>Simple Default Options Example (LINK element):</h4>
+            <div class="example">
+                <iframe ng-show="ex.defaultOptionsLink === 'e'" src="examples/defaultoptions2.html"></iframe>
+                <iframe ng-show="ex.defaultOptionsLink === 's'" src="examples/defaultoptions2.src.html"></iframe>
+                <iframe ng-show="ex.defaultOptionsLink === 'c'" src="examples/defaultoptions2.css.html"></iframe>
+                <h5 ng-click="ex.defaultOptionsLink = 'e'" ng-class="ex.defaultOptionsLink === 'e' ? 'active' : ''">Example</h5>
+                <h5 ng-click="ex.defaultOptionsLink = 's'" ng-class="ex.defaultOptionsLink === 's' ? 'active' : ''">Source</h5>
+                <h5 ng-click="ex.defaultOptionsLink = 'c'" ng-class="ex.defaultOptionsLink === 'c' ? 'active' : ''">CSS</h5>
+            </div>
+
+            <h4>live & importScope Options Example:</h4>
+            <div class="example">
+                <iframe ng-show="ex.live === 'e'" src="examples/live.html"></iframe>
+                <iframe ng-show="ex.live === 's'" src="examples/live.src.html"></iframe>
+                <h5 ng-click="ex.live = 'e'" ng-class="ex.live === 'e' ? 'active' : ''">Example</h5>
+                <h5 ng-click="ex.live = 's'" ng-class="ex.live === 's' ? 'active' : ''">Source</h5>
+            </div>
+
+            <h4>live & Named importScope Options Example:</h4>
+            <div class="example">
+                <iframe ng-show="ex.named === 'e'" src="examples/named.html"></iframe>
+                <iframe ng-show="ex.named === 's'" src="examples/named.src.html"></iframe>
+                <h5 ng-click="ex.named = 'e'" ng-class="ex.named === 'e' ? 'active' : ''">Example</h5>
+                <h5 ng-click="ex.named = 's'" ng-class="ex.named === 's' ? 'active' : ''">Source</h5>
+            </div>
+
+            <h4>script importScope Options Example:</h4>
+            <div class="example">
+                <iframe ng-show="ex.script === 'e'" src="examples/script.html"></iframe>
+                <iframe ng-show="ex.script === 's'" src="examples/script.src.html"></iframe>
+                <h5 ng-click="ex.script = 'e'" ng-class="ex.script === 'e' ? 'active' : ''">Example</h5>
+                <h5 ng-click="ex.script = 's'" ng-class="ex.script === 's' ? 'active' : ''">Source</h5>
+            </div>
+
+            <h4>Complex Example:</h4>
+            This page is setup as a complex example!
+            The live-bound STYLE element is setup to allow for in-line SCRIPTs (so all of the data is setup within the STYLE element itself, not in the <pre>ng-controller</pre>) and it imports the <pre>$scope</pre> from the TABLE below.
+            Have a play with the various CSS values and see the changes live in this page:
+            <table id="liveExample" ng-controller="ExampleController">
+                <thead>
+                    <tr>
+                        <th>Selector</th>
+                        <th>Property</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>body</td>
+                        <td>color</td>
+                        <td><input ng-model="css.body.color" /></td>
+                    </tr>
+                    <tr>
+                        <td>table td</td>
+                        <td>padding</td>
+                        <td><input ng-model="css.tableTd.padding" /></td>
+                    </tr>
+                    <tr>
+                        <td>table td</td>
+                        <td>background-color</td>
+                        <td><input ng-model="css.tableTd.backgroundColor" /></td>
+                    </tr>
+                    <tr>
+                        <td>[mixin]</td>
+                        <td>background-color</td>
+                        <td><input ng-model="css.mixin.backgroundColor" /></td>
+                    </tr>
+                    <tr>
+                        <td>[mixin]</td>
+                        <td>border</td>
+                        <td><input ng-model="css.mixin.border" /></td>
+                    </tr>                
+                </tbody>
+            </table>
+
+            <h3>Documentation</h3>
+            <h4>Basic Setup</h4>
+            <ol>
+                <li>
+                    Include Angular and ngCss SCRIPTs:
+                    <blockquote>
+                        &lt;script type="text/javascript" src="js/angular.min.js"&gt;&lt;/script&gt;
+                        <br />&lt;script type="text/javascript" src="js/cnNg.module.ngCss.js"&gt;&lt;/script&gt;
+                    </blockquote>
+                </li>
+                <li>
+                    Include the attribute <pre>ng-app="myAngularApp"</pre> in your HTML element (e.g. <pre>&lt;html ng-app="myAngularApp"&gt;</pre>) and setup <pre>myAngularApp</pre> to include the ngCss module like so:
+                    <blockquote>
+                        &lt;script&gt;
+                        <br />var myAngularApp = angular.module("myAngularApp", ['ngCss']);
+                        <br />&lt;/script&gt;
+                    </blockquote>
+                </li>
+                <li>
+                    Add the <pre>ng-css</pre> attribute to the LINK and/or STYLE elements we want to process:
+                    <blockquote>
+                        &lt;link rel="stylesheet" type="text/css" href="css/site.css" <strong>ng-css</strong>&gt;
+                        <br />&lt;style type="text/css" <strong>ng-css</strong>&gt;...&lt;/style&gt;
+                    </blockquote>
+                </li>
+                <li>
+                    Define the <a href="#options"><pre>options</pre></a> used by ngCss (if any):
+                    <blockquote>
+                        &lt;style type="text/css" <strong>ng-css="{ script: true, live: true }</strong>"&gt;...&lt;/style&gt;
+                        <br />&lt;link rel="stylesheet" type="text/css" href="css/site.css" <strong>ng-css="{ script: true, live: true }</strong>"&gt;
+                    </blockquote>
+                </li>
+                <li>
+                    Edit the CSS within the LINK and/or STYLE elements to use ngCss like this:
+                    <blockquote>
+                        <pre>
+<em class="comment">/*
+<em class="script">&lt;script&gt;
+    $scope.color = 'blue';
+&lt;/script&gt;</em>
+*/</em>
+DIV {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>;
+}
+</pre>
+                    </blockquote>
+                </li>
+            </ol>
+
+
+
+
+
+            <h4><a name="options">Options</a></h4>
+            <ul>
+                <li><pre>options.script</pre> (type: <pre>boolean</pre>, default: <pre>false</pre>): Specifies if SCRIPT elements embedded within the CSS are to be <pre>$eval</pre>ed.</li>
+                <li><pre>options.live</pre> (type: <pre>boolean</pre>, default: <pre>false</pre>): Specifies if changes made within the <pre>$scope</pre> are to be automatically reflected within the CSS. When set to <pre>false</pre>, the custom <pre>$broadcast</pre> event "updateCss" is configured (e.g. <pre>$rootScope.$broadcast('updateCss');</pre>).</li>
+                <li><pre>options.commented</pre> (type: <pre>boolean</pre>, default: <pre>true</pre>): Specifies if Angular variables within the CSS are surrounded by comment tags (e.g. <pre>/*<em class="ng">ngVariable</em>*/</pre>).</li>
+                <li><pre>options.crlf</pre> (type: <pre>boolean</pre>, default: <pre>false</pre>): Specifies if ngCss is to add a <em>carriage return/line feed</em> after each CSS entry. <strong>Note:</strong> Enabling this option may throw off the line numbers of the processed code when debugging.</li>
+                <li>
+                    <pre>options.importScope</pre> (type: "<pre>variant</pre>", default: <pre>false</pre>) behaves in the following ways based on its <pre class="i">type</pre>/value:
+                    <ul>
+                        <li><pre>false</pre> (default): ngCss will operate with its own isolated <pre>$scope</pre> (aka: an <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive"><em>isolate scope</em></a>).</li>
+                        <li><pre>true</pre>: The <pre>$scope</pre> in effect for the LINK or SCRIPT element will be imported. <strong>Note:</strong> You will need to ensure that your <pre>ng-controller</pre> is set on an element at or above your LINK or STYLE element(s), otherwise its <pre>$scope</pre> will not be accessible.</li>
+                        <li><pre class="i">object</pre>: The <pre class="i">object</pre> will be interpreted as a jqLite/jQuery/DOM reference and the <pre>$scope</pre> in effect for that element will be imported. If the <pre class="i">object</pre> is not a valid reference (e.g. <pre>angular.element(<pre class="i">object</pre>).scope()</pre> returns <pre>undefined</pre>), "Error #1"/"ngCss:E1" is <pre>throw</pre>n.</li>
+                        <li><pre class="i">string</pre>: The <pre class="i">string</pre> will be interpreted as an ID and the <pre>$scope</pre> in effect for that element will be imported. If the <pre class="i">string</pre> is not a valid ID (e.g. <pre>document.getElementById(<pre class="i">string</pre>)</pre> returns <pre>null</pre>), "Error #1"/"ngCss:E1" is <pre>throw</pre>n.</li>
+                        <li><pre class="i">function</pre>: The <pre class="i">function</pre> will be called with the isolate <pre>$scope</pre> as the first argument. The <pre>$scope</pre> will be reset to whatever is returned by the <pre class="i">function</pre> (which should be an <pre class="i">object</pre>). <strong>Note:</strong> This <pre class="i">function</pre> is called within the context of the default <em>isolate scope</em> ngCss has on startup, so it must refer to a function present in the global scope or an inline anonymous function.</li>
+                    </ul>
+                </li>
+            </ul>
+
+
+            <h3>Gotchas:</h3>
+            <ul>
+                <li>It is recommended to leave the default value of <pre>options.commented</pre> set to <pre>true</pre> (e.g. <pre>/*<em class="ng">ngVariable</em>*/</pre>) as the braces used by Angular are also used within CSS and these additional non-CSS-valid braces can cause issues with CSS editors. <strong>But...</strong> this will require you to modify your ngCss-enabled *.css files before CSS minimization as the commented <em class="ng">ngVariable</em>s will most definitly be removed during minimization.</li>
+                <li>Any instances of <pre>&#123;&#123;</pre> followed by <pre>&#125;&#125;</pre> within your CSS will be eaten by <pre>$interpolate</pre> or will otherwise cause errors. Make sure you have whitespace between all braces that are not <em class="ng">ngVariable</em>s.</li>
+                <li>As LINK *.css files are read via AJAX, the limitations of <a href="https://docs.angularjs.org/api/ng/service/$http"><pre>$http</pre></a></a> can restrict where you can retrieve your *.css files from. If your *.css files exist on the same server as your Angular application, this is a non-issue.</li>
+                <li>LINK elements are removed from the DOM, their *.css file contents are modified and placed within a new STYLE element appended into HEAD. This process can break some relative URLs within your *.css files (e.g. <pre>background-image: url("../img/a.png");</pre>). It is therefore recommended that you use absolute URLs within your *.css files (e.g. <pre>background-image: url("/img/a.png");</pre>) in order to avoid any such errors.</li>
+                <li>
+                    Embedded SCRIPTs are all <pre>$eval</pre>'ed in series at initilization prior to CSS modification, so the following will not work as expected:
+                    <blockquote>
+                        <pre>
+<em class="comment">/*
+<em class="script">&lt;script&gt;
+    $scope.color = 'blue';
+&lt;/script&gt;</em>
+*/</em>
+DIV {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">/* expecting 'blue' */</em>
+}
+<em class="comment">/*
+<em class="script">&lt;script&gt;
+    $scope.color = 'green';
+&lt;/script&gt;</em>
+*/</em>
+SPAN {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">/* expecting 'green' */</em>
+}
+                        </pre>
+                    </blockquote>
+                    At initilization <pre>$scope.color</pre> will be set to "blue" then "green" prior to any CSS modification, so the <em class="ng">color</em> of both DIV and SPAN will be set to "green".
+                </li>
+            </ul>
+
+        </form>
+    </body>
+</html>
