@@ -115,7 +115,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 ;
 
                 //# eval the options and set importScope
-                eval("options = " + $attrs["ngCss"] + ";");
+                eval("options = " + ($attrs["ngCss"] || "{}") + ";");
                 importScope = options["importScope"] || false;
 
                 //# Update the css based on our $scope
