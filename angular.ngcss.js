@@ -5,7 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-(function (angular) {
+(function (angular, fnLocalEvaler, fnSandboxEvaler) {
     'use strict';
 
     //# Setup the required "global" vars
@@ -97,7 +97,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     //# Processes the referenced CSS (either inline CSS in STYLE tags or external CSS in LINK tags) for Angular {{variables}}, optionally allowing for live binding and inline script execution.
     //# 
     //#     Options provided via the ng-css attribute (e.g. `<link ng-css="{ script: false, live: false, commented: true }" ... />`):
-    //#         options.script (default: false)         Specifies if <script> tags embedded within the CSS are to be executed.
+    //#         options.script (default: false)         Specifies if <script> tags embedded within the CSS are to be executed. "local" specifies that the eval'uations will be done within an isolated closure with local scope, any other truthy value specifies that the eval'uations will be done within an isolated sandboxed enviroment with access only given to the $scope.
     //#         options.live (default: false)           Specifies if changes made within $scope are to be automatically reflected within the CSS.
     //#         options.commented (default: true)       Specifies if Angular variables within the CSS are surrounded by CSS comment tags. E.g. `/*{{ngVariable}}*/`.
     //#         options.crlf (default: false)           Specifies if ngCss is to add `\n` after each CSS entry. Note that enabling this will throw off the line numbers of the processed code when debugging.
@@ -106,22 +106,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         return {
             //# .restrict the directive to attribute only (e.g.: <style ng-css>...</style> or <link ng-css ... />)
             restrict: "A",
-            scope: {},
+            scope: {
+                options: "=ngCss"
+            },
             link: function($scope, $element, $attrs) {
                 var css,
-                    options, //options = $scope.$eval($attrs["ngCss"]) || {},
-                    importScope, //importScope = options["importScope"] || false,
-                    reScript = /<script.*?>([\s\S]*?)<\/script>/gi
+                    options = angular.extend({}, {
+                        script: false,
+                        live: false,
+                        commented: true,
+                        crlf: false,
+                        importScope: false
+                    }, $scope.options),
+                    importScope = (options && options.importScope ? options.importScope : false),
+                    reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
+                    reScriptSrc = /<script.*?src=['"](.*?)['"].*?>/i
                 ;
-
-                //# eval the options and set importScope
-                eval("options = " + ($attrs["ngCss"] || "{}") + ";");
-                importScope = options["importScope"] || false;
 
                 //# Update the css based on our $scope
                 function updateCSS() {
                     //# Reset the crlf based on our options, then $interpolate the css, $eval'ing the result and replacing the modified css back into our $element's .html
-                    crlf = (options["crlf"] === true ? "\n" : "");
+                    crlf = (options.crlf === true ? "\n" : "");
                     $element.html($scope.$eval($interpolate(css)));
                 }
 
@@ -171,22 +176,61 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 //# Processes the CSS and sets hooks based on our options
                 function processCSS() {
                     //# If the caller has specifically opted to enable SCRIPT tags within the *.css
-                    if (options["script"] === true) {
-                        var i,
-                            js = css.match(reScript),
-                            reDeScript = /<[\/]?script.*?>/gi
-                        ;
+                    if (options.script) {
+                        var i, $src,
+                            a_sJS = css.match(reScript),
+                            reDescript = /<[\/]?script.*?>/gi,
+                            get = function (sUrl, fnCallback) {
+                                var $xhr;
+                                
+                                //# IE5.5+, Based on http://toddmotto.com/writing-a-standalone-ajax-xhr-javascript-micro-library/
+                                try {
+                                    $xhr = new(XMLHttpRequest || ActiveXObject)('MSXML2.XMLHTTP.3.0');
+                                } catch (e) {}
+                                
+                                //# If we were able to collect an $xhr object
+                                if ($xhr) {
+                                    //# Setup the callback
+                                    $xhr.onreadystatechange = function () {
+                                        fnCallback(($xhr.readyState === 4 && $xhr.status === 200), $xhr.responseText);
+                                    };
 
-                        //# Traverse the extracted js from the css (if any), reDeScript'ing as we go 
-                        if (js) {
-                            for (i = 0; i < js.length; i++) {
-                                eval(js[i].replace(reDeScript, ""));
+                                    //# GET the sUrl as a sync call (hence false)
+                                    $xhr.open("GET", sUrl, false);
+                                    $xhr.send();
+                                }
                             }
+                        ;
+                        
+                        //# If there was a_sJS in the css
+                        if (a_sJS && a_sJS.length > 0) {
+                            //# Traverse the extracted a_sJS from the css, reDeScript'ing as we go 
+                            for (i = 0; i < a_sJS.length; i++) {
+                                $src = reScriptSrc.exec(a_sJS[i] || "");
+
+                                //# If there is an $src in the SCRIPT tag, .get the js synchronously
+                                if ($src && $src[1]) {
+                                    get($src[1], function(bSuccess, js) {
+                                        a_sJS[i] = (bSuccess ? js : "");
+                                    });
+                                }
+                                //# Else this is an inline SCRIPT tag, so process accordingly
+                                else {
+                                    a_sJS[i] = a_sJS[i].replace(reDescript, "");
+                                }
+                            }
+                        
+                            //# Unless the caller specificially requested a "local" eval, eval in a sandbox
+                            //#     NOTE: in either case, we only expose $scope to the eval thanks to the isolated closures of fnSandboxEvaler and fnLocalEvaler
+                            ((options.script + "").toLowerCase() !== "local"
+                                ? fnSandboxEvaler($scope, a_sJS, document)
+                                : fnLocalEvaler($scope, a_sJS)
+                            );
                         }
                     }
 
                     //# Unless we've explicitly been told the Angular variables are not .commented, assume they are and pre-process the css accordingly
-                    if (options["commented"] !== false) {
+                    if (options.commented !== false) {
                         css = css.replace(reScript, "").replace(/\/\*{{/g, "{{").replace(/}}\*\//g, "}}");
                     }
 
@@ -194,10 +238,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     updateCSS();
 
                     //# If we are supposed to live-bind .$watch for any changes in the $scope, calling our updateCSS function when they occur
-                    if (options["live"] === true) {
+                    if (options.live === true) {
                         $scope.$watch(updateCSS);
                     }
-                        //# Else we are not .live, so setup the event listener
+                    //# Else we are not .live, so setup the event listener
                     else {
                         $rootScope.$on('updateCss', function () {
                             updateCSS();
@@ -210,7 +254,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 switch ($element.prop("tagName").toUpperCase()) {
                     case "LINK": {
                         //# .get the file contents from the *.css file
-                        $http.get($attrs["href"])
+                        $http.get($attrs.href)
                             .success(function (response) {
                                 var $head = angular.element(document.getElementsByTagName('head'));
 
@@ -227,7 +271,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 resolveScope();
                             })
                             .error(function (response) {
-                                throw ("ngCss Error #2: Unable to load file: " + $attrs["href"] + "\nServer Response: " + response);
+                                throw ("ngCss Error #2: Unable to load file: " + $attrs.href + "\nServer Response: " + response);
                             })
                         ;
                         break;
@@ -246,4 +290,76 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         };
     }]); //# module.directive('ngCss'
 
-})(angular);
+})(angular,
+    function($scope /*, a_sJS*/) {
+        var scope = $scope;
+        
+        //# Traverse the passed a_sJS (accessed from the arguments pseudo-array), processing each entry in-turn (as ordering matters)
+        //#     NOTE: The loop below is done in this way so as to only expose $scope/scope to the eval'd code
+        //#     NOTE: Since this block is outside of the "use strict" block above, the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declared and used, but they automaticially fall out of scope once the eval'uations are complete.
+        while (arguments[1].length > 0) {
+            eval(arguments[1].shift());
+        }
+    },
+    function($scope, a_sJS, $doc) {
+        'use strict';
+        
+        //# Returns a Javascript code string that safely collects the global version of eval into the passed sTarget
+        //#     NOTE: Manually compressed SCRIPT expanded below (based on http://perfectionkills.com/global-eval-what-are-the-options/#the_problem_with_geval_windowexecscript_eval):
+        //#         try {
+        //#             return (function (globalObject, Object) {
+        //#                 return ((1, eval)('Object') === globalObject
+        //#                     ? function (c) { return (1, eval)(c); }
+        //#                     : (window.execScript ? function (c) { return window.execScript(c); } : undefined)
+        //#                 );
+        //#             })(Object, {});
+        //#         } catch (e) { return undefined; }
+        function globalEvalFn() {
+            return "try{return(function(g,Object){return((1,eval)('Object')===g?function(c){return(1,eval)(c);}:(window.execScript?function(c){return window.execScript(c);}:null));})(Object,{});}catch(e){return null}";
+        }
+
+        //# Creates a sandbox via an iFrame that is temporally added to the DOM
+        //#     NOTE: The `parent` is set to `null` to completely isolate the sandboxed DOM
+        function createSandbox() {
+            var oReturnVal,
+                $dom = ($doc.body || $doc.head || $doc.getElementsByTagName("head")[0]),
+                $iFrame = $doc.createElement("iframe")
+            ;
+
+            //# Configure the $iFrame, add it into the $dom and collect the $iFrame's DOM reference into our oReturnVal
+            $iFrame.style.display = "none";
+            $dom.appendChild($iFrame);
+            oReturnVal = ($iFrame.contentWindow || $iFrame.contentDocument); //# frames[frames.length - 1];
+
+            //# .write the SCRIPT out to the $iFrame (which implicitly runs the code) then remove the $iFrame from the $dom
+            oReturnVal.document.write(
+                "<script>" +
+                    "window.$eval = function(){" + globalEvalFn() + "}();" +
+                    //"window.$sandbox=true;" +
+                    "parent=null;" +
+                "<\/script>"
+            );
+            $dom.removeChild($iFrame);
+
+            return oReturnVal;
+        } //# createSandbox
+        
+        
+        var i,
+            $sandbox = createSandbox(),
+            $eval = $sandbox.$eval
+        ;
+        
+        //# Import the $scope into our $sandbox and delete the $eval
+        //#     NOTE: This is done so only $scope/scope is exposed to the eval'd code
+        $sandbox.$scope = $scope;
+        $sandbox.scope = $scope;
+        delete $sandbox.$eval;
+        
+        //# Traverse the passed a_sJS, .$eval'ing each entry in-turn (as order matters)
+        //#     NOTE: Since the .$eval code is outside of our own "use strict" block (as it was .write'n to the $iFrame in createSandbox), the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declaired and used, but they automaticially fall out of scope once the eval'uations are complete.
+       for (i = 0; i < a_sJS.length; i++) {
+            $eval(a_sJS[i]);
+        }
+    }
+);
