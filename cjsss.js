@@ -6,10 +6,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
 */
-(function ($win, $doc, fnEvalFactory) {
+(function ($win, $doc, $, fnEvalFactory) {
     "use strict";
 
-    var cjsss = "cjsss",
+    var $serviceCore,
+        cjsss = "cjsss",
+        bExposed = false,
         $services = {},
         oCache = {},
         $head = ($doc.head || $doc.getElementsByTagName("head")[0]),
@@ -31,7 +33,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         if (oDefaults.selector) {
             $services.process();
         }
-        //# Else we'll need to .expose ourselves, else the developer won't have access to the functionality
+        //# Else we'll need to .expose ourselves (otherwise the developer won't have access our functionality)
         else {
             //oDefaults.expose = true;
             $services.expose();
@@ -39,10 +41,10 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     };
 
 
-    //# DOM querying functionality
-    //#     NOTE: Include cjsss-polyfill.js to support IE7 and below
+    //# DOM querying functionality (defaulting to jQuery if it's present on-page)
+    //#     NOTE: Include cjsss.polyfill.js to support IE7 and below if jQuery is not present
     //#     NOTE: This can also be replaced with calls to jQuery, Sizzle, etc. for sub-IE8 support, see: http://quirksmode.org/dom/core/ , http://stackoverflow.com/questions/20362260/queryselectorall-polyfill-for-all-dom-nodes
-    $services.dom = function (sSelector) {
+    $services.dom = $ || function (sSelector) {
         //# Wrap the .querySelectorAll call in a try/catch to ensure older browsers don't throw errors on CSS3 selectors
         //#     NOTE: We are not returning a NodeList on error, but a full Array (which could be confusing for .services developers if they are not careful).
         try { return $doc.querySelectorAll(sSelector); }
@@ -52,16 +54,20 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
     //# Exposes our functionality under the $win(dow)
     $services.expose = function () {
-        //# .extend the current $win[cjsss] (if any) with the internal values
-        //#     NOTE: We do not have to individually .extend oDefaults or $services here because that was done before we are called in the procedural code (below)
-        //#     NOTE: We implement process with .apply below to ensure that $win[cjsss].process() calls are always routed to the version under $win[cjsss].services (else a developer updating $win[cjsss].services.process would also have to update $win[cjsss].process)
-        $win[cjsss] = $services.extend({
-            options: oDefaults,
-            services: $services,
-            process: function () {
-                $win[cjsss].services.process.apply(this, arguments);
-            }
-        }, $win[cjsss]);
+        //# If we've not yet been bExposed
+        if (!bExposed) {
+            bExposed = true;
+
+            //# .extend the current $win[cjsss] (if any) with the internal values
+            //#     NOTE: We implement process with .apply below to ensure that $win[cjsss].process() calls are always routed to the version under $win[cjsss].services (else a developer updating $win[cjsss].services.process would also have to update $win[cjsss].process)
+            $win[cjsss] = $services.extend({
+                options: oDefaults,
+                services: $services,
+                process: function () {
+                    $win[cjsss].services.process.apply(this, arguments);
+                }
+            }, $win[cjsss]);
+        }
     }; //# $services.expose
 
 
@@ -70,16 +76,23 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     $services.extend = function (oTarget) {
         var i, sKey;
 
-        //# Traverse the N passed arguments, appending/replacing the values from each into the oTarget
+        //# Ensure the passed oTarget is an object
+        oTarget = ($services.is.obj(oTarget) ? oTarget : {});
+        
+        //# Traverse the N passed arguments, appending/replacing the values from each into the oTarget (recursing on .is.obj)
         //#     NOTE: i = 1 as we are skipping oTarget
         for (i = 1; i < arguments.length; i++) {
             if ($services.is.obj(arguments[i])) {
                 for (sKey in arguments[i]) {
-                    oTarget[sKey] = arguments[i][sKey];
+                    oTarget[sKey] = ($services.is.obj(arguments[i][sKey])
+                        ? $services.extend(oTarget[sKey], arguments[i][sKey])
+                        : arguments[i][sKey]
+                    );
                 }
             }
         }
 
+        //# For convenience, return the oTarget to the caller (to allow for $service.extend({}, obj1, obj2)-style calls)
         return oTarget;
     }; //# $services.extend
 
@@ -251,10 +264,14 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
 
     //# Safely parses the passed sOptions into an object
-    //#     NOTE: Include cjsss-polyfill.js to support JSON.parse on IE7 and below, see: http://caniuse.com/#feat=json
+    //#     NOTE: Include cjsss.polyfill.js to support JSON.parse on IE7 and below if jQuery is not present, see: http://caniuse.com/#feat=json
     $services.parseOptions = function (sOptions) {
+        //# Polyfill JSON.parse from jQuery if necessary
+        JSON = JSON || {};
+        if ($ && !JSON.parse) { JSON.parse = $.parseJSON; }
+        
         //# 
-        if (JSON && JSON.parse && oDefaults.optionScope === "json") {
+        if ($services.is.fn(JSON.parse) && oDefaults.optionScope === "json") {
             return ($services.is.str(sOptions) ? JSON.parse(sOptions) : undefined);
         }
         //# 
@@ -384,9 +401,12 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     }; //# $services.warn
 
 
+    //####################
     //# "Procedural" code
-
-
+    //####################
+    //# Before importing any external functionality, copy the $service function references into the .$core
+    $services.$core = $services.extend({}, $services);
+    
     //# If the developer has already setup a $win[cjsss] object
     //#     NOTE: This first call to .is.obj (below) is the only non-overridable piece of code in CjsSS!
     if ($services.is.obj($win[cjsss])) {
@@ -405,6 +425,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 })(
     window,
     document,
+    jQuery,
     function($win, $doc, $services) {
         var fnGEval = null;
 
