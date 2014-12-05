@@ -10,42 +10,67 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     "use strict";
 
     var cjsss = "cjsss",
+        $services = {},
+        oCache = {},
+        $head = ($doc.head || $doc.getElementsByTagName("head")[0]),
         oDefaults = {
-            $selector: "[" + cjsss + "], [data-" + cjsss + "]",     //# STRING (CSS selector); Selector used when autorun is enabled.
+            selector: "[" + cjsss + "], [data-" + cjsss + "]",      //# STRING (CSS Selector);
+            optionScope: "json",                                    //# STRING (enum: json, global, local, sandbox); 
             expose: false,                                          //# BOOLEAN; Set window.cjsss?
             async: true,                                            //# BOOLEAN; Process LINK tags asynchronously?
             scope: "sandbox",                                       //# STRING (enum: global, local, sandbox); Javascript scope to evaluate code within.
             crlf: "",                                               //# STRING; Character(s) to append to the end of each line of .css/.mixin-processed CSS.
             d1: "/*{{", d2: "}}*/"                                  //# STRING; Delimiters denoting embedded Javascript variables (d1=start, d2=end).
-        },
-        $services = {},
-        $head = ($doc.head || $doc.getElementsByTagName("head")[0])
+        }
     ;
+
+
+    //# Autorun functionality
+    $services.autorun = function () {
+        //# If we have a .selector then we need to .process them (using the default options of .process)
+        if (oDefaults.selector) {
+            $services.process();
+        }
+        //# Else we'll need to .expose ourselves, else the developer won't have access to the functionality
+        else {
+            //oDefaults.expose = true;
+            $services.expose();
+        }
+    };
 
 
     //# DOM querying functionality
     //#     NOTE: Include cjsss-polyfill.js to support IE7 and below
     //#     NOTE: This can also be replaced with calls to jQuery, Sizzle, etc. for sub-IE8 support, see: http://quirksmode.org/dom/core/ , http://stackoverflow.com/questions/20362260/queryselectorall-polyfill-for-all-dom-nodes
     $services.dom = function (sSelector) {
-        return $doc.querySelectorAll(sSelector);
+        //# Wrap the .querySelectorAll call in a try/catch to ensure older browsers don't throw errors on CSS3 selectors
+        //#     NOTE: We are not returning a NodeList on error, but a full Array (which could be confusing for .services developers if they are not careful).
+        try { return $doc.querySelectorAll(sSelector); }
+        catch (e) { return [] }
     };
 
 
     //# Exposes our functionality under the $win(dow)
     $services.expose = function () {
-        $win[cjsss] = $win[cjsss] || {};
-        $win[cjsss].process = $services.process;
-        $win[cjsss].services = $services;
-        $win[cjsss].options = oDefaults;
+        //# .extend the current $win[cjsss] (if any) with the internal values
+        //#     NOTE: We do not have to individually .extend oDefaults or $services here because that was done before we are called in the procedural code (below)
+        //#     NOTE: We implement process with .apply below to ensure that $win[cjsss].process() calls are always routed to the version under $win[cjsss].services (else a developer updating $win[cjsss].services.process would also have to update $win[cjsss].process)
+        $win[cjsss] = $services.extend({
+            options: oDefaults,
+            services: $services,
+            process: function () {
+                $win[cjsss].services.process.apply(this, arguments);
+            }
+        }, $win[cjsss]);
     }; //# $services.expose
 
 
-    //# Extends the passed oTarget with the additionally provided objects
-    //#     NOTE: Right-most object wins
+    //# Extends the passed oTarget with the additionally passed N objects
+    //#     NOTE: Right-most object (last argument) wins
     $services.extend = function (oTarget) {
         var i, sKey;
 
-        //# Traverse the n passed arguments, appending/replacing the values from each into the oTarget
+        //# Traverse the N passed arguments, appending/replacing the values from each into the oTarget
         //#     NOTE: i = 1 as we are skipping oTarget
         for (i = 1; i < arguments.length; i++) {
             if ($services.is.obj(arguments[i])) {
@@ -54,30 +79,32 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 }
             }
         }
+
+        return oTarget;
     }; //# $services.extend
 
 
     //# Wrapper for a GET AJAX call
-    $services.get = function (sUrl, fnCallback, oArgument, bAsync) {
+    $services.get = function (sUrl, bAsync, oCallback) {
         var $xhr;
                                 
         //# IE5.5+, Based on http://toddmotto.com/writing-a-standalone-ajax-xhr-javascript-micro-library/
         try {
-            $xhr = new(XMLHttpRequest || ActiveXObject)('MSXML2.XMLHTTP.3.0');
+            $xhr = new(this.XMLHttpRequest || ActiveXObject)('MSXML2.XMLHTTP.3.0');
         } catch (e) {}
-        
+
         //# If we were able to collect an $xhr object
         if ($xhr) {
             //# Setup the callback
             //$xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
             $xhr.onreadystatechange = function () {
                 if ($xhr.readyState === 4 && $xhr.status === 200) {
-                    fnCallback($xhr.responseText, oArgument);
+                    oCallback.fn($xhr.responseText, oCallback.arg);
                 }
             };
 
-            //# GET the sUrl as a sync call (hence false)
-            $xhr.open("GET", sUrl, (bAsync ? true : false));
+            //# GET the sUrl
+            $xhr.open("GET", sUrl, bAsync);
             $xhr.send();
         }
     };
@@ -86,7 +113,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     //# Datatype checking functionality
     $services.is = {
         str: function(s) {
-            return (typeof s === 'string' || s instanceof String);
+            //# NOTE: This function also treats a 0-length string (null-string) as a non-string
+            return ((typeof s === 'string' || s instanceof String) && s !== '');
         },
         obj: function(o) {
             return (o && o === Object(o));
@@ -95,7 +123,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             return (Object.prototype.toString.call(f) === '[object Function]');
         },
         arr: function(a) {
-            return Object.prototype.toString.call(a) === '[object Array]';
+            return (Object.prototype.toString.call(a) === '[object Array]');
         }
     };
 
@@ -108,9 +136,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         ;
 
         //# Form a closure around the logic to ensure the variables are not garbage collected during async calls
-        //#     NOTE: I have no idea why this was occurring and this closure may not be necessary (a_sJS was being set to null). Seemed to be due to parallel calls squashing each others local vars(?!).
+        //#     NOTE: I have no idea why this was occurring and this closure may not be necessary (a_sJS was being set to null). Seemed to be due to parallel calls squashing each others function vars(?!). Maybe function variables are not new'd per invocation?
         return (function () {
-            var a_sToken, $src, $scope, sJS, sReturnVal, i,
+            var a_sToken, $src, $scope, fnEvaler, sJS, sReturnVal, i,
                 a_sJS = sCss.match(reScript) || [],
                 a_sTokenized = sCss.replace(reScript, "").split(oOptions.d1),
                 fnMixin = function mixin(oObj, bSelector) {
@@ -157,18 +185,20 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 }
             }
 
-            var evaler = $services.evalFactory.create($scope);
-
+            //# 
+            fnEvaler = $services.evalFactory.create($scope);
+            
             //# Traverse the extracted a_sJS from the css (if any), reDeScript'ing as we go 
             for (i = 0; i < a_sJS.length; i++) {
                 $src = reScriptSrc.exec(a_sJS[i] || "");
-                
+
                 //# If there is an $src in the SCRIPT tag, .get it and .eval the resulting js synchronously (as order of SCRIPTs matters) 
                 if ($src && $src[1]) {
-                    $services.get($src[1], function (js) {
-                        console.log("there");
-                        a_sJS[i] = js;
-                    }, null, false);
+                    $services.get($src[1], false, {
+                        fn: function (js) {
+                            a_sJS[i] = js;
+                        }
+                    });
                 }
                 //# Else this is an inline SCRIPT tag, so process accordingly
                 else {
@@ -189,9 +219,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     : oOptions.d1 + a_sTokenized[i]
                 );
             }
-
+            
             //# 
-            a_sJS = evaler(a_sJS);
+            a_sJS = fnEvaler(a_sJS);
 
             //# 
             sReturnVal = a_sTokenized[0];
@@ -210,7 +240,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             //    a_sToken = a_sTokenized[i].split(oOptions.d2, 2);
             //    sJS = a_sToken[0];
             //    sReturnVal += (sJS.indexOf("\n") === -1
-            //        ? evaler(sJS) + a_sToken[1]
+            //        ? fnEvaler(sJS) + a_sToken[1]
             //        : oOptions.d1 + a_sTokenized[i]
             //    );
             //}
@@ -221,17 +251,98 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
 
     //# Safely parses the passed sOptions into an object
-    //#     NOTE: Include cjsss-polyfill.js to support IE7 and below, see: http://caniuse.com/#feat=json
+    //#     NOTE: Include cjsss-polyfill.js to support JSON.parse on IE7 and below, see: http://caniuse.com/#feat=json
     $services.parseOptions = function (sOptions) {
-        return ($services.is.str(sOptions) && sOptions !== "" ? JSON.parse(sOptions) : undefined);
+        //# 
+        if (JSON && JSON.parse && oDefaults.optionScope === "json") {
+            return ($services.is.str(sOptions) ? JSON.parse(sOptions) : undefined);
+        }
+        //# 
+        else {
+            var fnEvaler = $services.evalFactory.create($win);
+            return fnEvaler(sOptions);
+        }
 
         //# Alt Sub-IE8 support:
         //var oReturnVal;
-        //if ($services.is.str(sOptions) && sOptions !== "") {
+        //if ($services.is.str(sOptions)) {
         //    $services.evalFactory.createSandbox().$eval("oReturnVal = " + sOptions);
         //}
         //return oReturnVal;
     };
+
+
+    //# Processes the CSS within the passed vElements using the provided oOptions (overriding any previously set)
+    $services.process = function (vElements, oOptions) {
+        var i, $current, o;
+
+        //# If a truthy vElements was passed
+        if (vElements) {
+            //# If the passed vElements is CSS Selector(-ish), selector the vElements now
+            if ($services.is.str(vElements)) {
+                vElements = $services.dom(vElements);
+            }
+            //# Else ensure the passed vElements is an array-like object
+            //#     NOTE: Since a NodeList is not a native Javascript object, .hasOwnProperty doesn't work
+            else {
+                vElements = (vElements[0] && vElements.length > 0 ? vElements : [vElements]);
+            }
+        }
+        //# Else if we have a .selector in our oDefaults
+        //#     NOTE: We do not look for a .selector within the passed oOptions because the .selector is only valid in our oDefaults (besides, the developer can pass it in the first argument)
+        else if (oDefaults.selector) {
+            vElements = $services.dom(oDefaults.selector);
+        }
+        //# Else the passed vElements is unreconized, so reset vElements (which also happens to be our return value) to a null-array so the loop below behaves properly
+        else {
+            vElements = [];
+        }
+        
+        //# Traverse the passed vElements
+        for (i = 0; i < vElements.length; i++) {
+            //# Reset the values for this loop
+            $current = vElements[i];
+            o = $services.extend(oDefaults, $services.parseOptions($current.getAttribute(cjsss) || $current.getAttribute("data-" + cjsss)), oOptions);
+
+            //# If we have been told to .expose ourselves, so do now (before we run any code below)
+            if (o.expose) {
+                $services.expose();
+            }
+
+            //# Determine the .tagName and process accordingly
+            //#     NOTE: We utilize .data below so that we can re-process the CSS if requested, else we loose the original value when we reset innerHTML
+            switch ($current.tagName.toLowerCase()) {
+                case "style": {
+                    //# Modify the $current style tag while adding it to the oCache
+                    oCache[$current] = oCache[$current] || $current.innerHTML;
+                    $current.innerHTML = $services.parseCss(oCache[$current], o);
+                    break;
+                }
+                case "link": {
+                    //# Collect the css from the LINK's href'erenced file
+                    //#     NOTE: We use .href rather than .getAttribute("href") because .href is a fully qualified URI while .getAttribute returns the set string
+                    $services.get($current.href, o.async, {
+                        fn: function (css, $link) {
+                            //# Setup the new $style element and it's oCache
+                            var $style = $doc.createElement('style');
+                            oCache[$style] = css;
+                            $style.setAttribute("type", "text/css");
+                            $style.setAttribute(cjsss, $link.getAttribute(cjsss) || $link.getAttribute("data-" + cjsss) || "");
+                            $style.innerHTML = $services.parseCss(css, o);
+
+                            //# Remove the $link then append the new $style element under our $head
+                            $link.parentNode.removeChild($link);
+                            $head.appendChild($style);
+                        },
+                        arg: $current
+                    });
+                }
+            } //# switch()
+        } //# for()
+
+        //# Return the vElements to the caller (for easier debugging if nothing is selected)
+        return vElements;
+    }; //# $services.process()
 
 
     //# Transforms the passed object into an inline CSS string (e.g. `color: red;\n`)
@@ -273,90 +384,24 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     }; //# $services.warn
 
 
-    //# Processes the CSS within the passed $elements using the provided oOptions
-    $services.process = function($elements, oOptions) {
-        var i, o, $current;
-
-        //# Ensure the passed $elements is an array-like object
-        $elements = ("length" in $elements ? $elements : [$elements]);
-
-        //# Traverse the passed $elements
-        for (i = 0; i < $elements.length; i++) {
-            //# Reset the values for this loop
-            $current = $elements[i];
-            o = {};
-            $services.extend(o, oOptions, $services.parseOptions($current.getAttribute(cjsss)));
-
-            //# Determine the .tagName and process accordingly
-            //#     NOTE: We utilize .data below so that we can re-process the CSS if requested, else we loose the original value when we reset innerHTML
-            switch ($current.tagName.toLowerCase()) {
-            case "style": {
-                //# Modify the $current style tag
-                $current.data = $current.data || {};
-                $current.data[cjsss] = $current.data[cjsss] || $current.innerHTML;
-                $current.innerHTML = $services.parseCss($current.data[cjsss], o);
-                break;
-            }
-            case "link": {
-                //# Collect the css from the LINK's href'erenced file
-                $services.get($current.href, function(css, $link) {
-                    //# Setup the new $style element
-                    var $style = $doc.createElement('style');
-                    $style.data = {};
-                    $style.data[cjsss] = css;
-                    $style.setAttribute("type", "text/css");
-                    $style.setAttribute(cjsss, $link.getAttribute(cjsss) || "");
-                    $style.innerHTML = $services.parseCss(css, o);
-
-                    //# Remove the $link then append the new $style element under our $head
-                    $link.parentNode.removeChild($link);
-                    $head.appendChild($style);
-                }, $current, o.async);
-            }
-            }
-        } //# for()
-    }; //# $services.process()
+    //# "Procedural" code
 
 
-    //# Auto-execute our main() function
-    (function main() {
-        var sOptions,
-            bAutoRun = true,
-            $script = $services.dom("SCRIPT[src*='/" + cjsss + ".']")[0]
-        ;
+    //# If the developer has already setup a $win[cjsss] object
+    //#     NOTE: This first call to .is.obj (below) is the only non-overridable piece of code in CjsSS!
+    if ($services.is.obj($win[cjsss])) {
+        //# .extend our oDefaults and $services (after first overriding .extend if there is a developer-implemented version)
+        $services.extend = ($win[cjsss].services && $win[cjsss].services.extend ? $win[cjsss].services.extend : $services.extend);
+        $services.extend($services, $win[cjsss].services);
+        $services.extend(oDefaults, $win[cjsss].options);
+    }
 
-        //# Build the passed fnEvalFactory, setting it into our $services
-        //#     NOTE: This is specifically placed outside of the "use strict" block to allow for the local eval calls below to persist across eval'uations
-        $services.evalFactory = fnEvalFactory($win, $doc, $services);
+    //# Build the passed fnEvalFactory (if one hasn't been set already)
+    //#     NOTE: The fnEvalFactory is specifically placed outside of the "use strict" block to allow for the local eval calls below to persist across eval'uations
+    $services.evalFactory = $services.evalFactory || fnEvalFactory($win, $doc, $services);
 
-        //# If we found our $script tag, reset the values of sOptions and bAutoRun
-        if ($script) {
-            sOptions = $script.getAttribute(cjsss) || $script.getAttribute("data-" + cjsss);
-            bAutoRun = !(/\?.*?autorun=false/i.test($script.getAttribute("src")));
-        }
-        //# Else we could not locate our $script tag, so .warn the caller
-        else {
-            $services.warn("Unable to locate script tag; the filename should contain '" + cjsss + "'. Any autorun and in-line options have not been processed.");
-        }
-
-        //# If we are supposed to, .process with the .extend'ed .$selector/oDefaults
-        if (bAutoRun) {
-            $services.extend(oDefaults, $services.parseOptions(sOptions));
-            $services.process($services.dom(oDefaults.$selector), oDefaults);
-        }
-        //# Else we are not supposed to bAutoRun, so ensure .expose is true (else how else will our code be run) and optionally .warn the caller
-        else {
-            oDefaults.expose = true;
-            if (sOptions) {
-                $services.warn("Autorun disabled; in-line options '" + sOptions + "' were not processed.");
-            }
-        }
-
-        //# If we have been told to .expose ourselves, so do now
-        if (oDefaults.expose === true) {
-            $services.expose();
-        }
-    })();
+    //# Do the .autorun
+    $services.autorun();
 })(
     window,
     document,
@@ -489,7 +534,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             sandbox: function (js, fnFallback) {
                 return factory(createSandbox(), fnFallback)(js);
             },
-            createSandbox: createSandbox //# createSandbox(oImport)
+            createSandbox: createSandbox
         };
     }
 );
