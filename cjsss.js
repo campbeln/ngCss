@@ -6,7 +6,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
 */
-(function ($win, $doc, $, fnEvalFactory) {
+(function ($win, $doc, fnEvalFactory) {
     "use strict";
 
     var $serviceCore,
@@ -14,6 +14,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         bExposed = false,
         $services = {},
         oCache = {},
+        jQuery = $win.jQuery,
         $head = ($doc.head || $doc.getElementsByTagName("head")[0]),
         oDefaults = {
             selector: "[" + cjsss + "], [data-" + cjsss + "]",      //# STRING (CSS Selector);
@@ -44,7 +45,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     //# DOM querying functionality (defaulting to jQuery if it's present on-page)
     //#     NOTE: Include cjsss.polyfill.js to support IE7 and below if jQuery is not present
     //#     NOTE: This can also be replaced with calls to jQuery, Sizzle, etc. for sub-IE8 support, see: http://quirksmode.org/dom/core/ , http://stackoverflow.com/questions/20362260/queryselectorall-polyfill-for-all-dom-nodes
-    $services.dom = $ || function (sSelector) {
+    $services.dom = jQuery || function (sSelector) {
         //# Wrap the .querySelectorAll call in a try/catch to ensure older browsers don't throw errors on CSS3 selectors
         //#     NOTE: We are not returning a NodeList on error, but a full Array (which could be confusing for .services developers if they are not careful).
         try { return $doc.querySelectorAll(sSelector); }
@@ -65,6 +66,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 services: $services,
                 process: function () {
                     $win[cjsss].services.process.apply(this, arguments);
+                },
+                mixin: function () {
+                    $win[cjsss].services.mixin.apply(this, arguments);
                 }
             }, $win[cjsss]);
         }
@@ -153,30 +157,14 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         return (function () {
             var a_sToken, $src, $scope, fnEvaler, sJS, sReturnVal, i,
                 a_sJS = sCss.match(reScript) || [],
-                a_sTokenized = sCss.replace(reScript, "").split(oOptions.d1),
-                fnMixin = function mixin(oObj, bSelector) {
-                    return (bSelector ? oObj.$selector + " {" : "") +
-                        $services.toCss(oObj, oOptions.crlf) +
-                        (bSelector ? "}" : "")
-                    ;
-                }
+                a_sTokenized = sCss.replace(reScript, "").split(oOptions.d1)
             ;
-
-            //# Prepend the mixin function onto the front of the a_sJS (so it is always available within the CSS SCRIPT blocks)
-            //a_sJS.unshift('function mixin(oObj, bSelector) {' +
-            //        'return (bSelector ? oObj.$selector + " {" : "") +' +
-            //            '$services.toCss(oObj, "' + oOptions.crlf + '") +' +
-            //            '(bSelector ? "}" : "")' +
-            //        ';' +
-            //    '}'
-            //);
 
             //# Determine the .scope and process accordingly
             switch ((oOptions.scope + "").substr(0, 1).toLowerCase()) {
                 //# If we are to have a global .scope, set the $scope to our $win
                 case "g": {
                     $scope = $win;
-                    $scope.mixin = fnMixin;
                     break;
                 }
                 //# If we are to have a local .scope, set $scope to null
@@ -194,12 +182,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 //case "s": {
                 default: {
                     $scope = $services.evalFactory.createSandbox();
-                    $scope.mixin = fnMixin;
                 }
             }
-
-            //# 
-            fnEvaler = $services.evalFactory.create($scope);
             
             //# Traverse the extracted a_sJS from the css (if any), reDeScript'ing as we go 
             for (i = 0; i < a_sJS.length; i++) {
@@ -234,7 +218,15 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             }
             
             //# 
-            a_sJS = fnEvaler(a_sJS);
+            fnEvaler = $services.evalFactory.create($scope);
+            a_sJS = fnEvaler(a_sJS, {
+                mixin: function mixin(oObj, bSelector) {
+                    return (bSelector ? oObj._selector + " {" : "") +
+                        $services.toCss(oObj, oOptions.crlf) +
+                        (bSelector ? "}" : "")
+                    ;
+                }
+            });
 
             //# 
             sReturnVal = a_sTokenized[0];
@@ -266,26 +258,27 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     //# Safely parses the passed sOptions into an object
     //#     NOTE: Include cjsss.polyfill.js to support JSON.parse on IE7 and below if jQuery is not present, see: http://caniuse.com/#feat=json
     $services.parseOptions = function (sOptions) {
+        var oReturnVal;
+
         //# Polyfill JSON.parse from jQuery if necessary
         JSON = JSON || {};
-        if ($ && !JSON.parse) { JSON.parse = $.parseJSON; }
+        if (jQuery && !JSON.parse) { JSON.parse = jQuery.parseJSON; }
+        
+        // TODO: Add global, local options
         
         //# 
         if ($services.is.fn(JSON.parse) && oDefaults.optionScope === "json") {
-            return ($services.is.str(sOptions) ? JSON.parse(sOptions) : undefined);
+            oReturnVal = ($services.is.str(sOptions) ? JSON.parse(sOptions) : undefined);
         }
         //# 
         else {
-            var fnEvaler = $services.evalFactory.create($win);
-            return fnEvaler(sOptions);
+            oReturnVal = $services.evalFactory.create($win)(sOptions);
         }
 
-        //# Alt Sub-IE8 support:
-        //var oReturnVal;
-        //if ($services.is.str(sOptions)) {
-        //    $services.evalFactory.createSandbox().$eval("oReturnVal = " + sOptions);
-        //}
-        //return oReturnVal;
+        //# .warn the developer if cjsss.option-only oOptions have been passed
+        $services.warnIgnored(oReturnVal);
+
+        return oReturnVal;
     };
 
 
@@ -315,6 +308,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             vElements = [];
         }
         
+        //# .warn the developer if cjsss.option-only oOptions have been passed
+        $services.warnIgnored(oOptions);
+
         //# Traverse the passed vElements
         for (i = 0; i < vElements.length; i++) {
             //# Reset the values for this loop
@@ -371,8 +367,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
         //# Traverse the oObj
         for (sKey in oObj) {
-            //# So long as this is not a .$selector
-            if (sKey !== "$selector") {
+            //# So long as this is not a ._selector
+            if (sKey !== "_selector") {
                 entry = oObj[sKey];
 
                 //# Transform the sKey from camelCase to dash-case (removing the erroneous leading dash if it's there)
@@ -401,6 +397,21 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
     }; //# $services.warn
 
 
+    //# 
+    $services.warnIgnored = function (oOptions) {
+        //# If the passed oOptions is an object, check it for cjsss.options-only options (.warn'ing if any are found)
+        if ($services.is.obj(oOptions)) {
+            if ("selector" in oOptions) {
+                $services.warn("The `selector` option is only valid on `" + cjsss + ".options`, value has been ignored.");
+            }
+            if ("optionScope" in oOptions) {
+                $services.warn("The `optionScope` option is only valid on `" + cjsss + ".options`, value has been ignored.");
+            }
+        }
+    }; //# $services.warnIgnored
+
+
+
     //####################
     //# "Procedural" code
     //####################
@@ -425,137 +436,165 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 })(
     window,
     document,
-    jQuery,
-    function($win, $doc, $services) {
-        var fnGEval = null;
+    (function(fnLocalEvaler) {
+        return function ($win, $doc, $services) {
+            var fnGEval = null;
 
-        //# Returns a Javascript code string that safely collects the global version of eval into the passed sTarget
-        //#     NOTE: Manually compressed SCRIPT expanded below (based on http://perfectionkills.com/global-eval-what-are-the-options/#the_problem_with_geval_windowexecscript_eval):
-        //#         try {
-        //#             return (function (globalObject, Object) {
-        //#                 return ((1, eval)('Object') === globalObject
-        //#                     ? function (c) { return (1, eval)(c); }
-        //#                     : (window.execScript ? function (c) { return window.execScript(c); } : undefined)
-        //#                 );
-        //#             })(Object, {});
-        //#         } catch (e) { return undefined; }
-        function globalEvalFn() {
-            //sWin = (sWin ? sWin : "window");
-            return "try{return(function(g,Object){return((1,eval)('Object')===g?function(c){return(1,eval)(c);}:(window.execScript?function(c){return window.execScript(c);}:null));})(Object,{});}catch(e){return null}";
-        }
+            //# Returns a Javascript code string that safely collects the global version of eval into the passed sTarget
+            //#     NOTE: Manually compressed SCRIPT expanded below (based on http://perfectionkills.com/global-eval-what-are-the-options/#the_problem_with_geval_windowexecscript_eval):
+            //#         try {
+            //#             return (function (globalObject, Object) {
+            //#                 return ((1, eval)('Object') === globalObject
+            //#                     ? function (c) { return (1, eval)(c); }
+            //#                     : (window.execScript ? function (c) { return window.execScript(c); } : undefined)
+            //#                 );
+            //#             })(Object, {});
+            //#         } catch (e) { return undefined; }
+            function globalEvalFn() {
+                //sWin = (sWin ? sWin : "window");
+                return "try{return(function(g,Object){return((1,eval)('Object')===g?function(c){return(1,eval)(c);}:(window.execScript?function(c){return window.execScript(c);}:null));})(Object,{});}catch(e){return null}";
+            }
 
-        //# 
-        //function evalInContext(js, context) {
-        //    //# Return the results of the in-line anonymous function we .call with the passed context
-        //    return function () { return eval(js); }.call(context);
-        //}
+            //# 
+            //function evalInContext(js, context) {
+            //    //# Return the results of the in-line anonymous function we .call with the passed context
+            //    return function () { return eval(js); }.call(context);
+            //}
 
-        //# Creates a sandbox via an iFrame that is temporally added to the DOM
-        //#     NOTE: The `parent` is set to `null` to completely isolate the sandboxed DOM
-        function createSandbox() {
-            var oReturnVal,
-                $dom = ($doc.body || $doc.head || $doc.getElementsByTagName("head")[0]),
-                $iFrame = $doc.createElement("iframe")
-            ;
-
-            //# Configure the $iFrame, add it into the $dom and collect the $iFrame's DOM reference into our oReturnVal
-            $iFrame.style.display = "none";
-            $dom.appendChild($iFrame);
-            oReturnVal = ($iFrame.contentWindow || $iFrame.contentDocument); //# frames[frames.length - 1];
-
-            //# .write the SCRIPT out to the $iFrame (which implicitly runs the code) then remove the $iFrame from the $dom
-            oReturnVal.document.write(
-                "<script>" +
-                    "window.$eval = function(){" + globalEvalFn() + "}();" +
-                    "window.$sandbox=true;" +
-                    "parent=null;" +
-                "<\/script>"
-            );
-            $dom.removeChild($iFrame);
-
-            return oReturnVal;
-        } //# createSandbox
-
-
-        //# Orchestrates the eval based on the passed oContext, allowing for Global (window), Sandboxed Global (sandbox), Local (null) and Context-based (non-null) versions of eval to be called
-        function factory(oContext, fnFallback) {
-            //# Ensure the passed fnFallback is a function
-            fnFallback = ($services.is.fn(fnFallback) ? fnFallback : function (s) {
-                $services.warn("Unable to collect requested `eval`, defaulting to local `eval`.");
-                return eval(s);
-            });
-
-            //# Return the eval'ing function to the caller
-            return function (js) {
-                var i,
-                    a_sReturnVal = [],
-                    bReturnArray = $services.is.arr(js),
-                    mixin = function (oObj, bSelector) {
-                        return (bSelector ? oObj.$selector + " {" : "") +
-                            $services.toCss(oObj, "") +
-                            (bSelector ? "}" : "")
-                        ;
-                    }
+            //# Creates a sandbox via an iFrame that is temporally added to the DOM
+            //#     NOTE: The `parent` is set to `null` to completely isolate the sandboxed DOM
+            function createSandbox() {
+                var oReturnVal,
+                    $dom = ($doc.body || $doc.head || $doc.getElementsByTagName("head")[0]),
+                    $iFrame = $doc.createElement("iframe")
                 ;
 
-                //# If the passed js wasn't an array, we need to place it into one
-                if (! bReturnArray) {
-                    js = [js];
-                }
+                //# Configure the $iFrame, add it into the $dom and collect the $iFrame's DOM reference into our oReturnVal
+                $iFrame.style.display = "none";
+                $dom.appendChild($iFrame);
+                oReturnVal = ($iFrame.contentWindow || $iFrame.contentDocument); //# frames[frames.length - 1];
 
-                //# If this is a global context call
-                if (oContext === $win) {
-                    //# If the global version of eval hasn't been collected yet, get it now
-                    if (fnGEval === null) {
-                        fnGEval = new Function(globalEvalFn())();
-                        //eval("fnGEval = function(){" + globalEvalFn("$win") + "}");
+                //# .write the SCRIPT out to the $iFrame (which implicitly runs the code) then remove the $iFrame from the $dom
+                oReturnVal.document.write(
+                    "<script>" +
+                        "window.$eval = function(){" + globalEvalFn() + "}();" +
+                        "window.$sandbox=true;" +
+                        "parent=null;" +
+                    "<\/script>"
+                );
+                $dom.removeChild($iFrame);
+
+                return oReturnVal;
+            } //# createSandbox
+
+
+            //# Orchestrates the eval based on the passed oContext, allowing for Global (window), Sandboxed Global (sandbox), Local (null) and Context-based (non-null) versions of eval to be called
+            function factory(oContext, fnFallback) {
+                //# Ensure the passed fnFallback is a function
+                fnFallback = ($services.is.fn(fnFallback) ? fnFallback : function (s) {
+                    $services.warn("Unable to collect requested `eval`, defaulting to local `eval`.");
+                    return eval(s);
+                });
+
+                //# Return the eval'ing function to the caller
+                return function (js, oImport) {
+                    var i,
+                        a_sReturnVal = [],
+                        bReturnArray = $services.is.arr(js),
+                        merge = function (oContext, oImport) {
+                            //# If the passed oImport .is.obj
+                            if ($services.is.obj(oImport)) {
+                                //# Traverse the oImport (if any), importing any unique sKeys into the oContext
+                                //#     NOTE: If a sKey already exists in the oContext, its value takes precedence over the one in oImport, hence "merge" rather than "extend"
+                                //#     NOTE: We assume that oContext is an object
+                                for (var sKey in oImport) {
+                                    oContext[sKey] = oContext[sKey] || oImport[sKey];
+                                }
+                            }
+                        }
+                    ;
+                    
+                    //# If the passed js wasn't an array, we need to place it into one
+                    if (!bReturnArray) {
+                        js = [js];
                     }
 
-                    //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
-                    for (i = 0; i < js.length; i++) {
-                        a_sReturnVal.push(fnGEval ? fnGEval(js[i]) : fnFallback(js[i]));
+                    //# If this is a local context call (as no oContext was passed in), make a direct non-"use strict" call to eval via fnLocalEvaler
+                    if (!oContext) {
+                        fnLocalEvaler({
+                            js: js,
+                            returnVals: a_sReturnVal,
+                            imports: oImport,
+                            key: ""
+                        });
                     }
-                }
-                //# Else if this is a local context call (as no oContext was passed in), make a direct non-"use strict" call to eval
-                else if (oContext === undefined || oContext === null) {
-                    //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
-                    for (i = 0; i < js.length; i++) {
-                        a_sReturnVal.push(eval(js[i]));
-                    }
-                }
-                //# Else if this is a sandbox call
-                else if (oContext.parent === null && oContext.$sandbox === true) {
-                    //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
-                    for (i = 0; i < js.length; i++) {
-                        a_sReturnVal.push(oContext.$eval ? oContext.$eval(js[i]) : fnFallback(js[i]));
-                    }
-                }
-                //# Else the caller passed in a vanilla oContext, so call eval using it
-                else {
-                    //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
-                    for (i = 0; i < js.length; i++) {
-                        a_sReturnVal.push(function () { return eval(js[i]); }.call(oContext));
-                    }
-                }
+                    //# Else if this is a global context call
+                    else if (oContext === $win) {
+                        //# If the global version of eval hasn't been collected yet, get it now
+                        //#     NOTE: A function defined by a Function() constructor does not inherit any scope other than the global scope (which all functions inherit), even though we are not using this paticular feature (as globalEvalFn get's the global version on eval)
+                        if (fnGEval === null) {
+                            fnGEval = new Function(globalEvalFn())();
+                        }
 
-                return (bReturnArray ? a_sReturnVal : a_sReturnVal[0]);
-            };
-        } //# factory
+                        //# Merge the oImport into the oContext
+                        merge(oContext, oImport);
 
-        //# 
-        //# a function defined by a Function constructor does not inherit any scope other than the global scope (which all functions inherit)
-        function evaler() {
+                        //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
+                        for (i = 0; i < js.length; i++) {
+                            a_sReturnVal.push(fnGEval ? fnGEval(js[i]) : fnFallback(js[i]));
+                        }
+                    }
+                    //# Else if this is a sandbox call
+                    else if (oContext.parent === null && oContext.$sandbox === true) {
+                        //# Merge the oImport into the oContext
+                        merge(oContext, oImport);
+
+                        //# Traverse the js array, eval'ing each entry as we go (placing the result into the corresponding index within our a_sReturnVal)
+                        for (i = 0; i < js.length; i++) {
+                            a_sReturnVal.push(oContext.$eval ? oContext.$eval(js[i]) : fnFallback(js[i]));
+                        }
+                    }
+                    //# Else the caller passed in a vanilla oContext, so .call fnLocalEvaler with the oContext
+                    else {
+                        fnLocalEvaler.call(oContext, {
+                            js: js,
+                            returnVals: a_sReturnVal,
+                            imports: oImport,
+                            key: ""
+                        });
+                    }
+
+                    return (bReturnArray ? a_sReturnVal : a_sReturnVal[0]);
+                };
+            } //# factory
+
             
+            //# Create the factory to return to the caller
+            return {
+                create: factory,
+                sandbox: function (js, fnFallback) {
+                    return factory(createSandbox(), fnFallback)(js);
+                },
+                createSandbox: createSandbox
+            };
+        }; //# return
+    })(function (/* oObj */) { //# This fnLocalEvaler function is placed here to limit its scope as narrowly as possible (hence the backflips with the arguments pseudo-array below)
+        //# Traverse the passed .imports (if any), importing each of its entries by .key into this[key] as we go
+        if (arguments[0].imports) {
+            for (arguments[0].key in arguments[0].imports) {
+                eval("var " + arguments[0].key + ";");
+                this[arguments[0].key] = this[arguments[0].key] || arguments[0].imports[arguments[0].key];
+            }
         }
 
+        //# Set the passed .returnVals to a null-array in prep for the loop below
+        arguments[0].returnVals = [];
 
-        //# Create the factory to return to the caller
-        return {
-            create: factory,
-            sandbox: function (js, fnFallback) {
-                return factory(createSandbox(), fnFallback)(js);
-            },
-            createSandbox: createSandbox
-        };
-    }
+        //# Traverse the passed "a_sJS" (arguments[0]), processing each entry in-turn (as ordering matters)
+        //#     NOTE: The loop below is done in this way so as to only expose the "oImports" to the eval'd code
+        //#     NOTE: Since this block is outside of the "use strict" block above, the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declared and used, but they automaticially fall out of scope once the eval'uations are complete.
+        while (arguments[0].js.length > 0) {
+            arguments[0].returnVals.push(eval(arguments[0].js.shift()));
+        }
+    })
 );
