@@ -19,10 +19,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         }
     ;
 
+    //#
+    function isObject(o) {
+        return (o && o === Object(o));
+    }
+
     
     //# Evaluation "class" to execute code within an iFrame sandbox
-    //#     NOTE: Since the $sandboxEvaler occures within the scope of the iFrame, we can have this code within a "use strict" block as the generated code for the iFrame is outside of this scope.
-    function $sandboxEvaler($scope, a_sJS, $doc) {
+    //#     NOTE: Since the sandboxEvaler occures within the scope of the iFrame, we can have this code within a "use strict" block as the generated code for the iFrame is outside of this scope.
+    function sandboxEvaler($scope, a_sJS, $doc) {
         //# Returns a Javascript code string that safely collects the global version of eval into the passed sTarget
         //#     NOTE: Manually compressed SCRIPT expanded below (based on http://perfectionkills.com/global-eval-what-are-the-options/#the_problem_with_geval_windowexecscript_eval):
         //#         try {
@@ -53,6 +58,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             oReturnVal = $iFrame.contentWindow;
 
             //# .write the SCRIPT out to the $iFrame (which implicitly runs the code) then remove the $iFrame from the $dom
+            //#     NOTE: We very specifically do not "use strict" below to allow eval'd code to persist across calls.
             oReturnVal.document.write(
                 "<script>" +
                     "window.$sandbox={" +
@@ -62,13 +68,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     "parent=null;" +
                 "<\/script>"
             );
-            $dom.removeChild($iFrame);
+            oReturnVal.document.close();
+            //$dom.removeChild($iFrame);
 
             //# Return the window reference to the caller
             return oReturnVal;
         } //# createSandbox
-        
-        
+
+
         var i,
             $sandbox = createSandbox(),
             $eval = $sandbox.$sandbox.global || $sandbox.$sandbox.local
@@ -81,10 +88,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         delete $sandbox.$sandbox;
         
         //# Traverse the passed a_sJS, .$eval'ing each entry in-turn (as order matters)
-        //#     NOTE: Since the .$eval code is outside of our own "use strict" block (as it was .write'n to the $iFrame in createSandbox), the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declaired and used, but they automaticially fall out of scope once the eval'uations are complete.
+        //#     NOTE: Since the $eval'd code is outside of our own "use strict" block (as it was .write'n to the $iFrame in createSandbox), the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declaired and used, but they automaticially fall out of scope once the eval'uations are complete.
         for (i = 0; i < a_sJS.length; i++) {
             $eval(a_sJS[i]);
         }
+
+        //# Return the $eval'er to the caller to enable caching
+        return $eval;
     }
     
 
@@ -108,10 +118,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     sKey = (sKey.indexOf("-") === 0 ? sKey.substr(1) : sKey);
 
                     //# If this vEntry is an Object, recurse toCss() the sub-oObj
-                    if (vEntry && vEntry === Object(vEntry)) {
-                        sReturnVal += toCss(vEntry);
+                    if (isObject(vEntry)) {
+                        sReturnVal += toCss(vEntry, sCrLf);
                     }
-                    //# Else we assume this is a stringable-based vEntry
+                        //# Else we assume this is a stringable-based vEntry
                     else {
                         sReturnVal += sKey + ":" + vEntry + ";" + sCrLf;
                     }
@@ -123,25 +133,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         
         
         //# Return the .filter factory to Angular
+        //#     TODO: sSelector rather than bSelector?
         return function (val, bSelector, bCrLf) {
             var sCrLf = (bCrLf ? "\n" : "");
 
-            return (bSelector ? val._selector + " {" : "") + sCrLf +
-                toCss(val, sCrLf) + sCrLf +
-                (bSelector ? "}" : "")
-            ;
+            //# If the passed val is an Object
+            if (isObject(val)) {
+                return (bSelector ? val._selector + " {" : "") + sCrLf +
+                    toCss(val, sCrLf) + sCrLf +
+                    (bSelector ? "}" : "")
+                ;
+            }
+            else {
+                return "";
+            }
         };
     });
 
 
-    //# ngCss factory to house helper methods
+    //# ngCss factory to house public helper methods
     oModule.factory("ngCss", ["$rootScope", "$timeout", function ($rootScope, $timeout) {
         var $factory = {};
 
         //# Shortcut method to properly collect the .isolateScope (or $scope) for the vElement
         $factory.getScope = function (vElement, fnCallback) {
             //# If the passed vElement is a string, attempt to collect the DOM reference via .getElementById
-            if ((typeof vElement === 'string' || vElement instanceof String)) {
+            if (typeof vElement === 'string' || vElement instanceof String) {
                 vElement = document.getElementById(vElement);
             }
 
@@ -151,19 +168,51 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     $element = angular.element(vElement)
                 ;
 
-                //# If the $element exists in the oCache then it replaced a $link, so reset $element to the original (now detached) $link
-                if (oCache[$element]) {
-                    $element = oCache[$element];
+                //# If we were able to collect the vElement
+                if ($element) {
+                    //# If the $element is in the oCache, attempt to collect the .modifiedScope from there
+                    if (oCache[$element[0].id]) {
+                        $scope = oCache[$element[0].id].scope;
+                    }
+
+                    //# If we didn't collect the $scope from the oCache
+                    if (!$scope) {
+                        //# Set $scope and bIsIsolate via Angular's functions, resetting $scope if necessary
+                        $scope = $element.isolateScope();
+                        bIsIsolate = ($scope ? true : false);
+                        if (!bIsIsolate) { $scope = $element.scope(); }
+                    }
                 }
 
-                //# Set $scope and bIsIsolate, resetting $scope if necessary
-                $scope = $element.isolateScope();
-                bIsIsolate = ($scope ? true : false);
-                if (!bIsIsolate) { $scope = $element.scope(); }
-
-                //# fnCallback with the above resolved $scope and bIsIsolate
+                //# fnCallback with the above resolved $scope and bIsIsolate (if any)
+                //#     NOTE: We use all three Boolean states of bIsIsolate; "true" == isolate, "false" == non-isolate, "undefined" == unknown
                 fnCallback($scope, bIsIsolate);
             });
+        };
+
+        //# Returns a new isolated $scope with the passed oObject .extend'ed in
+        //$factory.asScope = function (oObject) {
+        //    var $scope;
+
+        //    //# If the passed oObject isObject
+        //    if (isObject(oObject)) {
+        //        //# If the oObject is already a $scope
+        //        if (oObject.$root && oObject.$root.constructor && oObject.$root.$on) {
+        //            $scope = oObject;
+        //        }
+        //        //# Else we need to create a new $scope and extend it with the passed oObject
+        //        else {
+        //            $scope = angular.extend($rootScope.$new(true), oObject)
+        //        }
+        //    }
+
+        //    return $scope;
+        //};
+
+        //# Extends our ngCss oDefaults options with the passed oOptions
+        $factory.defaults = function (oOptions) {
+            oDefaults = angular.extend(oDefaults, oOptions);
+            return angular.extend({}, oDefaults);
         };
 
         //# Shortcut method to listen for the custom .$broadcast event
@@ -178,6 +227,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             $rootScope.$broadcast('updateCss');
         };
 
+        //#
+        $factory.newId = function(sPrefix) {
+            var sRandom = Math.floor(Math.random() * 1000);
+
+            //#
+            sPrefix = sPrefix || "ngCss";
+
+            //#
+            while (document.getElementById(sPrefix + sRandom)) {
+                sRandom = Math.floor(Math.random() * 1000);
+            }
+
+            return sPrefix + sRandom;
+        };
+
         return $factory;
     }]);
     
@@ -190,7 +254,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     //#         options.importScope (default: false)    Specifies if the outer $scope is to be used by the directive. A 'false' value for this option results in an isolate scope for the directive and logically requires `options.script` to be enabled (else no variables will be settable).
     //#         options.script (default: false)         Specifies if <script> tags embedded within the CSS are to be executed. "local" specifies that the eval'uations will be done within an isolated closure with local scope, any other truthy value specifies that the eval'uations will be done within an isolated sandboxed enviroment with access only given to the $scope.
     //#         options.live (default: false)           Specifies if changes made within $scope are to be automatically reflected within the CSS.
-    oModule.directive('ngCss', ['$interpolate', 'ngCss', function ($interpolate, $ngCss) {
+    oModule.directive('ngCss', ['$interpolate', '$timeout', '$compile', 'ngCss', function ($interpolate, $timeout, $compile, $ngCss) {
+        var sD1 = $interpolate.startSymbol(),
+            sD2 = $interpolate.endSymbol(),
+            reD1 = new RegExp("/\\*" + sD1, "g"),
+            reD2 = new RegExp(sD2 + "\\*/", "g")
+        ;
+
         return {
             //# .restrict the directive to attribute only (e.g.: <style ng-css>...</style> or <link ng-css ... />)
             restrict: "A",
@@ -200,16 +270,54 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 options: "=ngCss"
             },
 
+            //# Use the template hook to scoop out the CSS before Angular processes it (so we avoid issues with double processing of {{vars}})
+            template: function ($element /*, $attrs*/) {
+                var $clone,
+                    $domE = $element[0],
+                    sTag = $element.prop("tagName").toLowerCase()
+                ;
+
+                //# If the $element doesn't have an .id, assign it one
+                $domE.id = $domE.id || $ngCss.newId();
+
+                //#
+                switch (sTag) {
+                    case "style": {
+                        //# Setup the oCache entry for this $element, collecting the .css from the STYLE tag
+                        oCache[$domE.id] = {
+                            css: ($element.html() + '')
+                        };
+
+                        //# Reset the .html of the $element so we avoid issues with double processing of {{vars}}
+                        $element.html("");
+                        break;
+                    }
+                    case "link": {
+                        //# LINK tags have no contents to process, so logically ignore them
+                        break;
+                    }
+                    default: {
+                        //# $clone the $domE into a DIV so we can collect it's HTML
+                        $clone = document.createElement("div");
+                        $clone.appendChild($domE.cloneNode(true));
+
+                        //# Setup the oCache entry for this $element, storing the .innerHTML (sans any commenting) into .html
+                        oCache[$domE.id] = {
+                            html: $clone.innerHTML.replace(reD1, sD1).replace(reD2, sD2)
+                        };
+                    }
+                }
+            },
+
             //# Define the link function to wire-up our functionality at data-link
             link: function($scope, $element, $attrs) {
-                var sCss,
+                var $newE,
+                    $domE = $element[0],
                     reScriptTag = /<[\/]?script.*?>/gi,
                     reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
                     reScriptSrc = /<script.*?src=['"](.*?)['"].*?>/i,
-                    oOptions = angular.extend({}, oDefaults, $scope.options),
-                    vImportScope = (oOptions.importScope ? oOptions.importScope : false)
+                    oOptions = angular.extend({}, oDefaults, $scope.options)
                 ;
-
 
                 //# HTTP GET Method functionality (supporting back to IE5.5)
                 //#     NOTE: Angular's internal $http functionality does not allow for synchronous calls, hence the need for this function
@@ -228,7 +336,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         $xhr.onreadystatechange = function () {
                             //# If the request is finished and the .responseText is ready
                             if ($xhr.readyState === 4) {
-                                fnCallback(($xhr.status === 200), $xhr.responseText);
+                                fnCallback(
+                                    ($xhr.status === 200 || ($xhr.status === 0 && sUrl.substr(0, 7) === "file://")),
+                                    $xhr.responseText,
+                                    $xhr
+                                );
                             }
                         };
 
@@ -243,63 +355,61 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 } //# get
 
 
-                //# Resolves our $scope based on the oOptions.importScope 
-                function resolveScope() {
-                    var bImportParent = (vImportScope === true);
+                //# Preprocess function to enable the $scope modification hook
+                function modifyScope(fnProcess) {
+                    var fnCallback = function($foreignScope) {
+                        //# If a $foreignScope was passed, reset our $scope, oCache it (for use in .getScope) then .process
+                        //#     NOTE: It is assumed that the developer passes in an Angular $scope under $foreignScope, else stuff won't work below
+                        if ($foreignScope) {
+                            $scope = $foreignScope;
+                            oCache[$domE.id].scope = $scope;
 
-                    //# Callback function to import the passed $importScope (or optionally its .$parent) and .process our $element
-                    function callback($importScope, bIsIsolate) {
-                        $scope = (bImportParent && bIsIsolate ? $importScope.$parent : $importScope);
-
-                        //# If the $scope wasn't successfully set in .resolveScope, throw the error
-                        if (!$scope) {
-                            throw ("ngCss Error #1: Unable to resolve `$scope` as specified in `oOptions.importScope`: " + oOptions.importScope);
+                            //# Ensure the $scope has been fully updated then .process
+                            $timeout(fnProcess || process);
                         }
+                    };
+
+                    //# If a truthy .modifyScope was provided
+                    if (oOptions.modifyScope) {
+                        //# If the developer provided a .modifyScope function
+                        if (Object.prototype.toString.call(oOptions.modifyScope) == '[object Function]') {
+                            //# Call the developer's .modifyScope along with a callback function to set the $modifiedScope into our $scope and to .process
+                            oOptions.modifyScope($scope, fnCallback);
+                        }
+                        //# Else feed it into .getScope, importing the returned $foreignScope
                         else {
-                            process();
+                            $ngCss.getScope(oOptions.modifyScope, fnCallback);
                         }
                     }
-
-                    //# If we have no $scope to import, we only need to .process our $element
-                    if (vImportScope === false) {
-                        process();
-                    }
-                    //# Else we need to overwrite our own isolate $scope with what is specified in oOptions.importScope
+                    //# Else no .modifyScope was provided so we just need to .process
                     else {
-                        //# If the .importScope is a function, call it passing in our own callback
-                        if (Object.prototype.toString.call(vImportScope) == '[object Function]') {
-                            vImportScope(callback);
-                        }
-                        //# Else...
-                        else {
-                            //# If .importScope is set to true, import our $element's .$parent $scope via our callback
-                            //# Else we assume the .importScope is an $element reference of some form that is processable via angular.element(), so import our vImportScope via our callback
-                            $ngCss.getScope((bImportParent ? $element : vImportScope), callback);
-                        }
+                        (fnProcess || process)();
                     }
-                } //# resolveScope
+                } //# modifyScope
+                
 
-
-                //# Update the sCss based on our $scope
+                //# Update the $element's CSS based on our $scope
                 function updateCSS() {
-                    //# $interpolate/$eval the sCss replacing the modified sCss back into our $element's .html
-                    $element.html($scope.$eval($interpolate(sCss)));
+                    //# $interpolate/$eval the .css replacing the modified .css back into our $element's .html
+                    $element.html($scope.$eval($interpolate(oCache[$domE.id].css)));
                 } //# updateCSS
 
 
                 //# Processes the CSS and sets hooks based on our oOptions
                 function process() {
-                    //# If the caller has opted to enable SCRIPT tags within the CSS
-                    //#     TODO: Cache eval'd SCRIPT?
-                    if (oOptions.script) {
-                        var i, $src,
-                            bSandbox = ((oOptions.script + "").toLowerCase() !== "local"),
-                            a_sJS = sCss.match(reScript)
-                        ;
-                        
-                        //# If there was a_sJS in the sCss
+                    var i, $src, a_sJS,
+                        sCSS = oCache[$domE.id].css,
+                        bLocalEval = ((oOptions.script + "").toLowerCase() === "local")
+                    ;
+
+                    //# If the caller opted to enable SCRIPT tags within the CSS and this is a bLocalEval or we have yet to collect the fnSandboxEval
+                    //#     NOTE: Holding the reference to fnSandboxEval allows us to cache the code within the sandbox rather than re-running the SCRIPT evals on every call
+                    if (oOptions.script && (bLocalEval || !oCache[$domE.id].evaler)) {
+                        a_sJS = sCSS.match(reScript);
+
+                        //# If there was a_sJS in the .css
                         if (a_sJS && a_sJS.length > 0) {
-                            //# Traverse the extracted a_sJS from the sCss
+                            //# Traverse the extracted a_sJS from the .css
                             for (i = 0; i < a_sJS.length; i++) {
                                 $src = reScriptSrc.exec(a_sJS[i] || "");
 
@@ -315,22 +425,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 }
                             }
                         
-                            //# Unless the caller specificially requested a "local" eval, eval the a_sJS in a bSandbox
-                            //#     NOTE: In either case we only expose $scope to the eval thanks to the nature of the $sandboxEvaler and the isolated closure of the fnLocalEvaler
-                            (bSandbox
-                                ? $sandboxEvaler($scope, a_sJS, document)
-                                : fnLocalEvaler($scope, a_sJS)
-                            );
+                            //# Unless the caller specifically requested a "local" eval, eval the a_sJS in a sandbox
+                            //#     NOTE: In either case we only expose $scope to the eval thanks to the nature of the sandboxEvaler and the isolated closure of the fnLocalEvaler
+                            if (bLocalEval) {
+                                fnLocalEvaler($scope, a_sJS);
+                            }
+                            else {
+                                oCache[$domE.id].evaler = sandboxEvaler($scope, a_sJS, document);
+                            }
                         }
                     }
 
-                    //# Unless we've explicitly been told the Angular variables are not .commented, assume they are and pre-process the sCss accordingly
-                    //#     TODO: Collect the Angular delimiters from Angular itself rather than hard-coding {{}} below
+                    //# Unless we've explicitly been told the Angular variables are not .commented, assume they are and pre-process the .css accordingly
                     if (oOptions.commented !== false) {
-                        sCss = sCss.replace(reScript, "").replace(/\/\*{{/g, "{{").replace(/}}\*\//g, "}}");
+                        oCache[$domE.id].css = sCSS.replace(reScript, "").replace(reD1, sD1).replace(reD2, sD2);
                     }
 
-                    //# Now that the sCss and $scope has been fully processed, .updateCSS in the $element
+                    //# Now that the .css and $scope has been fully processed, .updateCSS in the $element
                     updateCSS();
 
                     //# If we are supposed to live-bind, .$watch for any changes in the $scope (calling our .updateCSS function when they occur)
@@ -344,53 +455,58 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 } //# process
 
 
-
                 //####################
                 //# "Procedural" code
                 //####################
                 //# Determine the tagName and process accordingly
                 switch ($element.prop("tagName").toLowerCase()) {
                     case "link": {
-                        //# .get the file contents from the CSS file based on the set .async
-                        get($attrs.href, oOptions.async, function (bSuccess, response) {
+                        //# .get the file contents from the CSS file based on the passed oOptions.async
+                        get($domE.href, oOptions.async, function (bSuccess, sCss /*, $xhr*/) { //# $attrs.href
                             //# If the call was a bSuccess
                             if (bSuccess) {
-                                var $link = $element,
-                                    sID = $link[0].id
-                                ;
+                                //# Reset the entry for the old LINK/new STYLE $element
+                                oCache[$domE.id] = {
+                                    css: sCss
+                                    //,$link: $domE
+                                };
 
-                                //# Grab the sCss contents from the response and finish setting up the sID
-                                sCss = response;
-                                sID = (sID ? "id='" + sID + "'" : "");
-
-                                //# Build a new STYLE $element, oCache our original $link $element then remove it from the DOM (as it defines unprocessed CSS that will not be reprocessed) then .append the new STYLE $element into the .head
-                                //#     NOTE: We do not use .remove as we need to maintain the Angular $scope data on our original $link (which .remove implicitly deletes)
+                                //# Build a $newE STYLE $element, insert it .after the LINK, copy the ng-css attribute across (while resetting $element/$domE) then remove the original LINK (as it defines unprocessed CSS that will not be reprocessed)
+                                //#     NOTE: We do not use .replaceWith as we need to maintain the Angular $isolateScope (if any) on our original $link (which .remove implicitly deletes)
                                 //#     NOTE: We can't use .detach because despite the documentation (https://docs.angularjs.org/api/ng/function/angular.element) it doesn't seem to be present!?
+                                //#     NOTE: We can copy over the ng-css attribute below to the $newE STYLE tag because it is not getting re-$compiled by Angular (so the unnecessary recursive call will not occur)
                                 //#     TODO: Import other attributes?
-                                $element = angular.element("<style type='text/css' " + sID + ">" + sCss + "</style>");
-                                oCache[$element] = $link;
-                                $link[0].parentNode.removeChild($link[0]);
-                                angular.element(document.head || document.getElementsByTagName('head')[0]).append($element);
+                                $newE = angular.element("<style type='text/css' id='" + ($domE.id || $ngCss.newId()) + "'>" + sCss + "</style>");
+                                $element.after($newE);
+                                $element = $newE.attr("ng-css", $element.attr("ng-css"));
+                                $domE.parentNode.removeChild($domE);
+                                $domE = $newE[0];
 
-                                //# Now that the $link $element has been replaced by a STYLE, we can .resolveScope
-                                resolveScope();
+                                //# Now that the LINK $element has been replaced by a STYLE, we can .modifyScope
+                                modifyScope();
                             }
                             //# Else the call failed, so throw the error
                             else {
-                                throw ("ngCss Error #2: Unable to load file: " + $attrs.href + "\nServer Response: " + response);
+                                throw ("ngCss Error #2: Unable to load file: " + $attrs.href + "\nServer Response: " + sCss);
                             }
                         });
                         break;
                     }
                     case "style": {
-                        //# Grab the sCss contents from the $element's .html then .resolveScope
-                        sCss = ($element.html() + '');
-                        resolveScope();
+                        //# All we need to do for a STYLE tag is call .modifyScope
+                        modifyScope();
                         break;
                     }
                     default: {
-                        //#     TODO: Enable style attribute processing?
-                        throw ("ngCss Error #3: Attribute must be applied to either a LINK or STYLE tag.");
+                        //# Process the .modifyScope while passing in our own fnProcess
+                        modifyScope(function(){
+                            //# Create the $newE $element, replace the existing one and finally "re"$compile (all sans ng-css to avoid the unnecessary call at $compile)
+                            //#     NOTE: Our $scope is replaced by the $isolateScope within .modifyScope
+                            $newE = angular.element(oCache[$domE.id].html);
+                            $element.replaceWith($newE.removeAttr("ng-css"));
+                            $compile($newE)($scope);
+                            $element = $newE.attr("ng-css", $element.attr("ng-css"));
+                        });
                     }
                 }
             } //# link: function(...
@@ -398,9 +514,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }]); //# oModule.directive('ngCss'
 
 })(angular,
-    //# Include the fnLocalEvaler functionality to limit scope and have persistant eval'uations
+    //# Include the fnLocalEvaler functionality from here to limit scope and have persistant eval'uations
     //#     NOTE: We play games with arguments below to limit the variables in scope as narrowly as possible (even though `arguments[1]` et'al are valid and can be called)
-    //#     NOTE: Since this block is outside of the "use strict" block above, the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declared and used, but they automaticially fall out of scope once the eval'uations are complete.
+    //#     NOTE: Since this block is outside of the "use strict" block above, the eval'd code will remain in-scope across all evaluations (rather than isolated per-entry as is the case with "use strict"). This allows for local functions to be declared and used, but they automaticially fall out of scope once all eval'uations are complete.
     function($scope /*, a_sJS*/) {
         //# Ensure both $scope and scope are in, well, scope ;)
         var scope = $scope;
