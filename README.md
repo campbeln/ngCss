@@ -1,5 +1,5 @@
 # ngCss - Angular-powered CSS Preprocessor | Reprocessor
-ngCss is a tiny* Angular Directive+Filters+Module that enables binding of strings and objects (including nested objects) within CSS.
+ngCss is a tiny* Angular Directive+Filters+Factory that enables binding of strings and objects (including nested objects) within CSS.
 * Minified+compressed script under 2,600 bytes
 
 ## Features:
