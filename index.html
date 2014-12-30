@@ -1,0 +1,1335 @@
+<html ng-app="ngCn">
+    <head>
+        <title>ngCss :: Cascading Angular Style Sheets :: Next Generation CSS Preprocessor | Reprocessor</title>
+        
+        <style type="text/css" id="ngCss" ng-css="{ script: true, live: true }">
+            /*
+            <script>
+                //#
+                $scope.oFonts = {
+                    Arial: 'arial',
+                    Helvetica: 'Helvetica',
+                    ComicSans: 'Comic Sans',
+                    nonHeader: '"adelle", Georgia, "Times New Roman", Times, serif'
+                };
+                $scope.oColors = {
+                    red: '#832200',
+                    gray: '#EEEEEE',
+
+                    lightGreen: '#87CF41',
+                    lightBlue: '#5488A9',
+                    lightOrange: '#FF9A77',
+                    darkGreen: '#3A7600',
+
+                    orange: '#D64C1E',
+                    green: '#6CC01B',
+                    blue: '#1A5D89'
+                };
+                $scope.oColorSets = {
+                    blue: {
+                        backgroundColor: $scope.oColors.blue,
+                        color: "white",
+                        a: $scope.oColors.green
+                    },
+                    green: {
+                        backgroundColor: $scope.oColors.green,
+                        color: "white",
+                        a: $scope.oColors.red
+                    },
+                    orange: {
+                        backgroundColor: $scope.oColors.orange,
+                        color: "black",
+                        a: $scope.oColors.gray
+                    }
+                };
+
+                //#
+                $scope.oCSS = {
+                    mainColor: $scope.oColors.orange,
+                    color: 'black',
+                    fontFamily: $scope.oFonts.nonHeader,
+                    fonts: {
+                        pretty: $scope.oFonts.Helvetica,
+                        ugly: $scope.oFonts.ComicSans
+                    },
+                    splash: {
+                        h1_marginTop: "0.9%",
+                        h1_span_marginTop: "-1.7em"
+                    },
+                    about: {
+                        color: "black",
+                        a: $scope.oColors.blue
+                    },
+                    highlight: $scope.oColors.lightGreen,
+                    overview: $scope.oColorSets.blue,
+                    gettingStarted: $scope.oColorSets.orange,
+                    gotchas: $scope.oColorSets.green
+                };
+            </script>
+            */
+
+            /* Fonts */
+            @font-face {
+                font-family: 'Comic Sans';
+                src: url('./css/fonts/Comic Sans MS Regular.eot');
+                src: local('☺'), url('./css/fonts/Comic Sans MS Regular.woff') format('woff'), url('./css/fonts/Comic Sans MS Regular.ttf') format('truetype'), url('./css/fonts/Comic Sans MS Regular.svg') format('svg');
+                font-weight: normal;
+                font-style: normal;
+            }
+            @font-face {
+                font-family: 'Helvetica';
+                src: url('./css/fonts/Helvetica.eot');
+                src: local('☺'), url('./css/fonts/Helvetica.woff') format('woff'), url('./css/fonts/Helvetica.ttf') format('truetype'), url('./css/fonts/Helvetica.svg') format('svg');
+                font-weight: normal;
+                font-style: normal;
+            }
+            
+            /* Micro Clearfix (http://nicolasgallagher.com/micro-clearfix-hack/)
+             * content: The space content is one way to avoid an Opera bug when the contenteditable attribute is included anywhere else in the document. Otherwise it causes space to appear at the top and bottom of elements that are clearfixed.
+             * display: The use of `table` rather than `block` is only necessary if using `:before` to contain the top-margins of child elements.
+             * *zoom:   For IE 6/7 only, include this rule to trigger hasLayout and contain floats.
+             * clear:   The clearfix ;)
+             */
+            .cf:before,
+            .cf:after {
+                content: " ";
+                display: table;
+            }
+            .cf:after {
+                clear: both;
+            }
+            .cf {
+                *zoom: 1;
+            }
+
+            /* Site CSS */
+            HTML, BODY, FORM {
+                font-family: /*{{oCSS.fontFamily}}*/;
+                color: /*{{oCSS.color}}*/;
+                padding: 0;
+                margin: 0;
+            }
+            
+            /*  */
+            H1 {
+                font-family: /*{{oCSS.fonts.pretty}}*/;
+                font-size: 500%;
+                margin: 1% 0 0 0;
+                text-align: center;
+            }
+                H2 {
+                    font-family: /*{{oCSS.fonts.pretty}}*/;
+                    font-size: 350%;
+                    margin: 1% 0 2% 0;
+                }
+                H3 {
+                    font-family: /*{{oCSS.fonts.pretty}}*/;
+                    font-size: 200%;
+                    margin: 2% 0 2% 0;
+                }
+                H4 {
+                    font-family: /*{{oCSS.fonts.pretty}}*/;
+                    font-size: 150%;
+                    margin: 2% 0 2% 0;
+                }
+
+            A {
+                color: maroon;
+                text-decoration: none;
+            }
+                A:hover {
+                    border-bottom: 1px solid /*{{oColors.red}}*/;
+                }
+
+            SPAN.ugly {
+                font-family: /*{{oCSS.fonts.ugly}}*/;
+                color: /*{{oColorSets.green}}*/;
+            }
+            SPAN.pretty {
+                font-family: /*{{oCSS.fonts.pretty}}*/;
+                color: /*{{oColorSets.pink}}*/;
+            }
+            
+            UL#demo {
+                list-style: none;
+                margin-top: -2em;
+            }
+                UL#demo LI {
+                    height: 3em;
+                    width: 3em;
+                    margin: 5px;
+                    list-style: none;
+                    display: inline-block;
+                    border: 4px solid white;
+                    cursor: pointer;
+                }
+                    UL#demo LI.active {
+                        border-color: black;
+                    }
+
+            #nsr {
+                height: 500px;
+                background-color: /*{{oCSS.mainColor}}*/;
+                margin-top: 1em;
+            }
+
+            .donate,
+            .download {
+                top: 2%;
+                right: 2%;
+                font-size: 150%;
+                background: none repeat scroll 0 0 /*{{oCSS.mainColor}}*/;
+                border-radius: 30px;
+                color: #ffffff;
+                padding: 1% 2%;
+                text-decoration: none;
+                position: absolute;
+                border: 0;
+            }
+            .donate {
+                top: inherit;
+                background-color: /*{{oColors.red}}*/;
+                cursor: pointer;
+                margin-top: -1.5%;
+            }
+
+
+            PRE {
+                display: inline;
+                padding: 1px;
+            }
+                PRE.i {
+                    font-style: oblique;
+                    text-decoration: underline;
+                    text-decoration-style: wavy;
+                    -moz-text-decoration-style: wavy;
+                    text-decoration-color: /*{{oCSS.highlight}}*/;
+                    -moz-text-decoration-color: /*{{oCSS.highlight}}*/;
+                }
+                    PRE.i:before {
+                        content: "[";
+                    }
+                    PRE.i:after {
+                        content: "]";
+                    }
+                PRE > STRONG {
+                    background-color: /*{{oCSS.highlight}}*/;
+                }
+
+            .splash {
+                padding: 0 0 2% 0;
+                text-align: center;
+            }
+                .splash H1 {
+                    margin-top: /*{{oCSS.splash.h1_marginTop}}*/;
+                }
+                .splash H1 > SPAN {
+                    font-family: /*{{oCSS.fonts.ugly}}*/;
+                    font-size: 80%;
+                    display: inline-block;
+                    margin: /*{{oCSS.splash.h1_span_marginTop}}*/ -0.08em 0 -0.17em;
+                    -webkit-transform: rotate(-15deg);
+                    -o-transform: rotate(-15deg);
+                    transform: rotate(-15deg);
+                }
+                    .splash H1 > SPAN > SPAN {
+                        font-size: 50%;
+                        color: /*{{oCSS.mainColor}}*/;
+                    }
+                .splash .tagline {
+                    font-size: 150%;
+                    margin: -0.4em 0 0 0;
+                    text-align: center;
+                }
+
+            .overview,
+            .options,
+            .examples,
+            .gettingstarted,
+            .gotchas,
+            .snake,
+            .about {
+                width: 80%;
+                padding: 3% 10% 3% 10%;
+                clear: both;
+                line-height: 120%;
+            }
+
+            .about {
+                background-color: /*{{oCSS.mainColor}}*/;
+                color: /*{{oCSS.about.color}}*/;
+            }
+                .about > P:first-of-type {
+                    margin-top: 0;
+                }
+                .about A {
+                    color: /*{{oCSS.about.a}}*/;
+                }
+                    .about A:hover {
+                        border-bottom: 1px solid /*{{oCSS.about.a}}*/;
+                    }
+
+
+            .gettingstarted {
+                background-color: /*{{oCSS.gettingStarted.backgroundColor}}*/;
+                color: /*{{oCSS.gettingStarted.color}}*/;
+            }
+                .gettingstarted BLOCKQUOTE {
+                    color: black;
+                }
+                .gettingstarted A {
+                    color: /*{{oCSS.gettingStarted.a}}*/;
+                }
+                    .gettingstarted A:hover {
+                        border-bottom: 1px solid /*{{oCSS.gettingStarted.a}}*/;
+                    }
+
+            .gotchas {
+                background-color: /*{{oCSS.gotchas.backgroundColor}}*/;
+                color: /*{{oCSS.gotchas.color}}*/;
+            }
+                .gotchas A {
+                    color: /*{{oCSS.gotchas.a}}*/;
+                }
+                    .gotchas A:hover {
+                        border-bottom: 1px solid /*{{oCSS.gotchas.a}}*/;
+                    }
+
+            .overview {
+                background-color: /*{{oCSS.overview.backgroundColor}}*/;
+                color: /*{{oCSS.overview.color}}*/;
+            }
+                .overview UL LI {
+                    width: 48%;
+                }
+                    .overview UL LI:nth-of-type(odd) {
+                        float: left;
+                        clear: left;
+                    }
+                    .overview UL LI:nth-of-type(even) {
+                        float: right;
+                        clear: right;
+                    }
+                    .overview UL LI STRONG {
+                        text-transform: uppercase;
+                    }
+                .overview A {
+                    color: /*{{oCSS.overview.a}}*/;
+                }
+                    .overview A:hover {
+                        border-bottom: 1px solid /*{{oCSS.overview.a}}*/;
+                    }
+
+            .options .column {
+                width: 48%;
+            }
+                .options > DIV.c1of2 {
+                    float: left;
+                }
+                .options > DIV.c2of2 {
+                    float: right;
+                }
+                .options .column > H3 {
+                    margin: 4% 0 1.5% 0;
+                }
+                .options .column EM {
+                    display: block;
+                    margin: 0 0 0 3%;
+                }
+                    .options .column EM:last-of-type:before {
+                        content: "Default Value: ";
+                    }
+                    .options .column EM:last-of-type {
+                        margin-bottom: 2%;
+                    }
+                .options .note {
+                    font-style: italic;
+                    font-size: 90%;
+                    margin-top: 2%;
+                }
+                    .options .note:before {
+                        content: "NOTE: ";
+                    }
+
+            BLOCKQUOTE {
+                background: none repeat scroll 0 0 /*{{oColors.gray}}*/;
+                color: black !important;
+                border-radius: 10px;
+                padding: 1% 2%;
+                max-width: 750px;
+            }
+
+            em.comment {
+                color: /*{{oColors.darkGreen}}*/;
+            }
+            em.script {
+                color: /*{{oColors.red}}*/;
+            }
+
+            /**/
+            .ng:after {
+                content: "}}";
+            }
+            .ng:before {
+                content: "{{";
+            }
+        </style>
+
+
+        <script type="text/javascript" src="js/angular.min.js"></script>
+        <script type="text/javascript" src="js/angular.ngcss.js"></script>
+        <script type="text/javascript">
+            //# Setup the required globals
+            var ngCn = angular.module("ngCn", ['ngCss']);
+
+            //# Define Angular page .controller
+            ngCn.controller('PageController', ["$scope", "ngCss", function ($scope, ngCss) {
+                var oCSS;
+
+                //# Safely converts "rgb(x,x,x)" into "#xxxxxx"
+                function rgb2hex(rgb) {
+                    if (/^#[0-9A-F]{6}$/i.test(rgb)) return rgb;
+
+                    rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+                    function hex(x) {
+                        return ("0" + parseInt(x).toString(16)).slice(-2);
+                    }
+                    return "#" + (hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3])).toUpperCase();
+                }
+
+                //#
+                if (!$scope.$cssScope) {
+                    //# Collect a reference to the $cssScope via ngCss's .getScope
+                    ngCss.getScope("ngCss", function($cssScope, bIsIsolate) {
+                        $scope.$cssScope = $cssScope;
+                        oCSS = $cssScope.oCSS;
+                        oCSS.data = {
+                            fonts: $cssScope.oFonts,
+                            colors: $cssScope.oColors,
+                            sets: $cssScope.oColorSets
+                        };
+                    });
+                }
+
+
+                //# Updates the page's CSS to the user-selected profile
+                $scope.updateCSS = function ($event) {
+                    var i,
+                        $li = $event.target,
+                        $ul = document.getElementById("demo").children
+                    ;
+
+                    //# Traverse the $ul, removing the .active class as we go
+                    for (i = 0; i < $ul.length; i++) {
+                        $ul[i].className = "";
+                    }
+
+                    //# Set the passed $li to .active then collect the .mainColor from the $li's .backgroundColor (converting from "rgb(x,x,x)" to "#xxxxxx" as we go)
+                    $li.className = "active";
+                    oCSS.mainColor = rgb2hex($li.style.backgroundColor);
+
+                    //# Reset the user-updatable fields from the Complex Example
+                    oCSS.fontFamily = oCSS.data.fonts.nonHeader;
+                    oCSS.color = 'black';
+                    oCSS.data.sets.green.backgroundColor = oCSS.data.colors.green;
+
+                    //# Determine the user-selected profile and process accordingly
+                    switch (oCSS.mainColor) {
+                        case oCSS.data.colors.blue: {
+                            oCSS.highlight = oCSS.data.colors.lightGreen;
+
+                            oCSS.fonts.pretty = oCSS.data.fonts.Arial;
+                            oCSS.fonts.ugly = oCSS.data.fonts.ComicSans;
+                            oCSS.about.color = "white";
+                            oCSS.about.a = oCSS.data.colors.green;
+                            oCSS.splash.h1_span_marginTop = "-1.7em";
+                            oCSS.splash.h1_marginTop = "1%";
+                            oCSS.overview = oCSS.data.sets.orange;
+                            oCSS.gettingStarted = oCSS.data.sets.blue;
+                            oCSS.gotchas = oCSS.data.sets.green;
+                            break;
+                        }
+                        case oCSS.data.colors.orange: {
+                            oCSS.highlight = oCSS.data.colors.lightGreen;
+
+                            oCSS.fonts.pretty = oCSS.data.fonts.Helvetica;
+                            oCSS.fonts.ugly = oCSS.data.fonts.ComicSans;
+                            oCSS.about.color = "black";
+                            oCSS.about.a = oCSS.data.colors.red;
+                            oCSS.splash.h1_span_marginTop = "-1.7em";
+                            oCSS.splash.h1_marginTop = "0.9%";
+                            oCSS.overview = oCSS.data.sets.blue;
+                            oCSS.gettingStarted = oCSS.data.sets.orange;
+                            oCSS.gotchas = oCSS.data.sets.green;
+                            break;
+                        }
+                        case oCSS.data.colors.green: {
+                            oCSS.highlight = oCSS.data.colors.lightOrange;
+
+                            oCSS.fonts.pretty = oCSS.data.fonts.ComicSans;
+                            oCSS.fonts.ugly = oCSS.data.fonts.Helvetica;
+                            oCSS.about.color = "black";
+                            oCSS.about.a = oCSS.data.colors.red;
+                            oCSS.splash.h1_span_marginTop = "-1.5em";
+                            oCSS.splash.h1_marginTop = "0";
+                            oCSS.overview = oCSS.data.sets.green;
+                            oCSS.gettingStarted = oCSS.data.sets.blue;
+                            oCSS.gotchas = oCSS.data.sets.orange;
+                            break;
+                        }
+                    }
+                };
+            }]); //# ngCn.controller('PageController'...
+
+
+                //# Define Angular page .controller
+            ngCn.controller('ExamplesController', ["$scope", "$interpolate", "ngCss", function ($scope, $interpolate, ngCss) {
+                var $iFrame = angular.element(document.getElementById("exampleFrame")),
+                    $codeTemplate = document.getElementById("exampleCodeTemplate"),
+                    $code = document.getElementById("exampleCode")
+                ;
+
+                //#
+                function removeCode(sCode, sType) {
+                    return sCode.replace(
+                        new RegExp('<code type="' + sType + '">([\\s\\S]*?)<\/code>', "gi")
+                    , "");
+                }
+
+
+                //#
+                $scope.ex = {
+                    prelinkFunction: 'prelinkFn',
+                    tag: "style",
+                    live: false,
+                    async: true,
+                    prelink: 'undefined',
+                    script: false
+                };
+
+
+                //#
+                $scope.importMainScope = function(fnCallback, $isolateScope, $element, $link) {
+                    ngCss.getScope("ngCss", function($cssScope, bIsIsolate) {
+                        fnCallback($cssScope);
+                    });
+                };
+
+
+                //#
+                $scope.buildExample = function () {
+                    var $win, sCode,
+                        $newiFrame = document.createElement("iframe")
+                    ;
+
+                    //#
+                    $newiFrame.id = "exampleFrame";
+                    $iFrame.replaceWith($newiFrame);
+                    $iFrame = angular.element($newiFrame);
+                    $win = $newiFrame.contentWindow;
+
+                    //#
+                    sCode = removeCode($codeTemplate.innerHTML, ($scope.ex.prelink === $scope.ex.prelinkFunction ? "noPrelink" : "prelink"));
+                    sCode = removeCode(sCode, ($scope.ex.tag === "style" ? "link" : "style"));
+                    sCode = removeCode(sCode, ($scope.ex.live ? "noLive" : "live"));
+                    sCode = sCode.replace(/<(\/)?code.*?>/gi, "").replace(/<!--\n/, "").replace(/-->\n/, "").replace(/\n\n\n/g, "\n");
+                    sCode = $scope.$eval($interpolate(sCode));
+
+                    //#
+                    sCode = sCode.replace(/\/\*{_{/g, "{{").replace(/}_}\*\//g, "}}")
+                        .replace(/{_{/g, "{{").replace(/}_}/g, "}}")
+                    ;
+
+                    //#
+                    $code.value = sCode;
+                    $win.document.write(sCode);
+                    $win.document.close();
+
+                    //#
+                    $scope.showTab({ target: document.getElementById("tabs").children[0].children[0] });
+                };
+
+
+                //#
+                $scope.showTab = function($event) {
+                    var i,
+                        $li = $event.target,
+                        $ul = document.getElementById("tabs"),
+                        $content = document.getElementById($li.htmlFor)
+                    ;
+
+                    //#
+                    for (i = 0; i < $ul.children.length; i++) {
+                        $ul.children[i].children[0].className = "";
+                    }
+                    for (i = 0; i < $ul.parentNode.children.length; i++) {
+                        if ($ul.parentNode.children[i].tagName.toLowerCase() !== "ul") {
+                            $ul.parentNode.children[i].className = "";
+                        }
+                    }
+
+                    $li.className = "active";
+                    $content.className = "show";
+                };
+            }]); //# ngCn.controller('ExamplesController'...
+        </script>
+
+
+    </head>    
+    <body>
+        <div class="splash" ng-controller="PageController">
+            <a class="download" href="https://github.com/campbeln/ngcss">Download From GitHub</a>
+
+            <div style="position: absolute; left: 50%; top: -1.5%; width: 9%; z-index: -1;">
+                <div style="position: relative; left: -50%;">
+                    <img src="img/shield.png" style="width: 100%;" />
+                </div>
+            </div>
+            
+            <h1>
+                ngCss
+            </h1>
+            <span class="tagline">Angular Binding in CSS</span>
+
+            <br/><img src="img/notsirrobin.png" id="nsr" />
+
+            <a name="profiles"></a>
+            <ul id="demo" ng-init="init()">
+                <li style="background-color: /*{{oColors.blue}}*/;" ng-css="{ prelink: 'ngCss', live: false }" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ prelink: 'ngCss', live: false }" class="active" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.green}}*/;" ng-css="ngCss" ng-click="updateCSS($event)"></li>
+            </ul>
+
+            <span class="tagline">CSS + JavaScript + Angular = Next Generation CSS Preprocessor | Reprocessor</span>
+        </div>
+
+        
+        <div class="overview">
+            <h2>Overview</h2>
+            <p>
+                ngCss is <a href="http://www.lesscss.org/">LESS</a> <a href="http://www.sass-lang.com/">SASS</a>y and more <a href="http://learnboost.github.io/stylus/">Stylus</a>h than the competition ;)
+            </p>
+            <ul class="cf">
+                <li><a href="#browsersupport"><strong>Browser Support:</strong></a> <a href="https://docs.angularjs.org/guide/ie">Same as Angular 1.2</a>; IE8+</li>
+                    <li><strong>Licensing Fees:</strong> $0, nada, nutin' (licensed under the <a href="http://opensource.org/licenses/MIT">MIT License</a>) but <a href="#about">Nick does accept tips</a></li>
+                <li><strong>Installation:</strong> n/a, just include <pre>angular.ngcss.min.js</pre></li>
+                    <li><strong>Tiny!</strong> Only ~2,500 bytes compressed</li>
+
+                <li>CSS can be live-bound or updated via the custom <pre>$broadcast</pre> event <em>updateCss</em></li>
+                    <li><pre>$scope</pre> can be initilized within the CSS itself, allowing for complete isolation of CSS-related code</li>
+
+                <li>Near-zero learning curve; it's just Javascript &amp; Angular embedded within CSS!</li>
+                    <li>Your CSS stays CSS; no language features to learn or mentally decode</li>
+                <li>Angular+Vanilla Javascript toolkit with no external dependencies</li>
+                    <li>No need for developer debugging tools, just view source or inspect element</li>
+                <li>Create complex mixins with nested Javascript/JSON <pre>object</pre>s via the <em>css</em> Filter</li>
+                    <li>Client-side CSS preprocessor and reprocessor capabilities with no plugins required</li>
+                <li><pre>camelCase</pre> to <pre>dash-case</pre> of Javascript <pre>object</pre> keys converted auto-magicially</li>
+                    <li><pre>eval</pre>uated Javascript fully sandboxed by default</li>
+                <li>Use any Javascript library within your CSS, not just language supported functions</li>
+                    <li><pre>$scope</pre> can be isolated or imported from any Angular <pre>$element</pre></li>
+                <li>Ability to use <pre class="ng">Variable</pre>s within <pre>style</pre> attributes</li>
+                    <li>Supports external <pre>SCRIPT</pre> references within the CSS (e.g. <pre>&lt;script src='<a href="https://github.com/gka/chroma.js">https://github.com/gka/chroma.js</a>'&gt;&lt;/script&gt;</pre>).</li>
+                <li>~550 lines of source code are fully commented and accessible to the brave and not-so-brave alike</li>
+            </ul>
+            <!-- http://www.styleweekly.com/richmond/the-hr-department/Content?oid=1721447 -->
+            <img src="img/twistedsister.png" style="position: absolute; width: 7%; left: 1%; margin-top: -0.7%;" alt="Our (twisted) sister project: CjsSS.js" />
+            Check out the Vanilla Javascript (twisted) sister project <a href="http://opensourcetaekwondo.com/cjsss/">CjsSS.js</a> for a CSS Preprocessor | Reprocessor sans Angular.
+        </div>
+
+
+        <a name="options"></a>
+        <div class="options cf">
+            <h2>Options</h2>
+            <div class="cf">
+                Option values can be passed into ngCss in a few places:
+                <ol>
+                    <li>
+                        <pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ prelink: 'myCss', live: false }"</strong>&gt;...&lt;/div&gt;</pre>
+                        <br/>overrides:
+                    </li>
+                    <li>
+                        <pre>&lt;style type="text/css" id="myCss" <strong>ng-css='{ live: true }'</strong> /&gt;...&lt;/style&gt;</pre>
+                        <br/>or
+                        <br/><pre>&lt;link rel="stylesheet" type="text/css" id="myCss" href="css/site.css" <strong>ng-css='{ live: true }'</strong> /&gt;</pre>
+                        <br/>overrides:
+                    </li>
+                    <li>
+                        The default values described below (<a href="#override">which can be overridden</a>).
+                    </li>
+                </ol>
+                In the example above, <pre>options.live</pre> will be set to <pre>false</pre> within the context of the <pre>DIV</pre> as the <pre>DIV</pre> tag's option values override the <pre>STYLE</pre> / <pre>LINK</pre> tags' option values.
+                <pre>options.live</pre> will be set to <pre>true</pre> within the context of the <pre>STYLE</pre> / <pre>LINK</pre> tags' which overrides the default value (<pre>false</pre>).
+            </div>
+
+            <div class="column c1of2">
+                <h3>prelink</h3>
+                <div>
+                    <em>VARIANT (see valid values below)</em>
+                    <em>false</em>
+                    Callback hook before the directive wires up <pre>$scope</pre> linking.
+                    This hook allows you to modify the <pre>$scope</pre> that will be in effect for the directive and/or the <pre>$element</pre> prior to rendering the directive:
+                    <ul>
+                        <li>
+                            <pre><pre class="i">falsey</pre></pre> - <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate scope</a>.
+                            The directive will operate with its own isolated <pre>$scope</pre>.
+                        </li>
+                        <li>
+                            <pre class="i">string</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a>).
+                            The <pre class="i">string</pre> will be interpreted as an ID and the <pre>$scope</pre> in effect for the referenced element will be imported.
+                        </li>
+                        <li>
+                            <pre class="i">object</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a> or <a href="https://developer.mozilla.org/en-US/docs/Web/API/element">DOM element</a>).
+                            The <pre>$scope</pre> in effect for the referenced element will be imported.
+                        </li>
+                        <li>
+                            <pre class="i">object</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Javascript Object</a>).
+                            The passed <pre class="i">object</pre> will be <a href="https://docs.angularjs.org/api/ng/function/angular.extend"><pre>extend</pre></a>ed into the directive's isolated <pre>$scope</pre>.
+                        </li>
+                        <li>
+                            <pre class="i">function</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions#Function_constructor_vs._function_declaration_vs._function_expression">function object</a>).
+                            This <pre class="i">function</pre> will be called with 4 arguments:
+                            <ol>
+                                <li>
+                                    <pre>fnCallback</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions#Function_constructor_vs._function_declaration_vs._function_expression">function object</a>). The function to call on completion (e.g. <pre>fnCallback();</pre> or <pre>fnCallback(<a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">$newScope</a>);</pre>)
+                                </li>
+                                <li>
+                                    <pre>$scope</pre> (as an <a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">Angular Scope</a>). The default <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate scope</a> in effect for the directive.
+                                </li>
+                                <li>
+                                    <pre>$element</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a>). The directive's <pre>$element</pre>.
+                                </li>
+                                <li>
+                                    <pre>$link</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a> or <pre>undefined</pre> for non-LINK tags). The replaced <pre>LINK</pre> element.
+                                </li>
+                            </ol>
+                            <div class="note">
+                                If you do not call <pre>fnCallback</pre> the directive will not be properly wired up.
+                            </div>
+                            <div class="note">
+                                If you wish to replace the default isolated <pre>$scope</pre> with a <pre>$newScope</pre>, pass it in as the first argument in the <pre>fnCallback</pre> function (e.g. <pre>fnCallback($newScope);</pre>).
+                                The <pre>$newScope</pre> object MUST be an <a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">Angular Scope</a>, else the directive will not function.
+                            </div>
+                            <div class="note">
+                                If a <pre>$link</pre> is passed you can safely <pre>$compile</pre> the <pre>$element</pre>, though it is advisable to remove the <pre>ng-css</pre> attribute before compilation (e.g. <pre>$element.attr("ng-css", "")</pre>) to avoid an unnecessary second call to ngCss.
+                            </div>
+                        </li>
+                    </ul>
+                    <div class="note">
+                        Each <pre>ng-css</pre> attributed <pre>LINK</pre> tag is replaced with a <pre>STYLE</pre> tag with only the <pre>ng-css</pre> attribute copied across.
+                        If you require additional attributes or processing to apply to these created <pre>STYLE</pre> tags, you can make any necessary modifications to the <pre>$element</pre> within a <pre>prelink</pre> <pre class="i">function</pre>.
+                    </div>
+                </div>
+            </div>
+            <div class="column c2of2">
+                <h3>script</h3>
+                <div>
+                    <em>VARIANT (see valid values below)</em>
+                    <em>false</em>
+                    The <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/">Javascript scope</a> that the ngCss-embedded Javascript will be <pre>eval</pre>uated within:
+                    <ul>
+                        <li>
+                            <pre class="i">falsey</pre> - embedded Javascript is not evaluated.
+                            <pre>SCRIPT</pre> tags embedded within the CSS are ignored.
+                        </li>
+                        <li>
+                            <pre class="i">truthy</pre> - <a href="http://www.html5rocks.com/en/tutorials/security/sandboxed-iframes/">iFrame sandboxed Javascript</a>.
+                            <pre>SCRIPT</pre> tags embedded within the CSS will be evaluated within a sandboxed window object exposing only the <pre>$scope</pre>.<a href="#*">*</a>
+                            Evaluated Javascript is cached within the sandbox and is not re-evaulated during reprocessing.
+                        </li>
+                        <li>
+                            <pre>"local"</pre> - <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#Simplifying_variable_uses">non-"use strict"</a> <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Guide/Closures">closure scope</a>.
+                            Javascript is evaluated within the host window object with full access to global resources, but once execution is complete embedded Javascript resources are no longer accessible unless set (or leaked) into the global scope.
+                        </li>
+                    </ul>
+                </div>
+
+
+                <h3>live</h3>
+                <div>
+                    <em>BOOLEAN</em>
+                    <em>false</em>
+                    Specifies if changes made within the <pre>$scope</pre> are to be automatically reflected within the CSS.
+                    When set to <pre>false</pre>, the custom <pre>$broadcast</pre> event <i>updateCss</i> is configured (e.g. <pre>$rootScope.$broadcast('updateCss');</pre>) and can be triggered via the factory's <pre>ngCss.updateCss()</pre> or via <pre>$rootScope.$broadcast('updateCss');</pre>.
+                </div>
+
+
+                <h3>async</h3>
+                <div>
+                    <em>BOOLEAN</em>
+                    <em>true</em>
+                    Specifies if <pre>LINK</pre> tags are to be processed asynchronously.
+                    If ordering matters in the execution of the embedded <pre>SCRIPT</pre>s, then this should be set to <pre>false</pre>.
+                </div>
+            </div>
+
+            <div style="clear: both; padding-top: 1%;">
+                <a name="*"></a>
+                * The <pre>IFRAME</pre>'s <pre>window.parent</pre> is set to <pre>null</pre>.
+            </div>
+
+
+            <h3><pre>style</pre> Attributes</h3>
+            <pre class="ng">Variable</pre>s can be used within any tag's <pre>style</pre> attribute (but <pre>SCRIPT</pre> tags are not permitted).
+            When applying ngCss to a <pre>style</pre> attribute, you have two options when setting the value of <pre>ng-css</pre>'s in-line options:
+            <ul>
+                <li>
+                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="myCss"</strong>&gt;...&lt;/div&gt;</pre></pre>
+                    <br/>This will import the <pre>$scope</pre> and option values from the HTML element with the ID <i>myCss</i> (e.g. "<i>myCss</i>" overrides <pre>options.prelink</pre>).
+                    This element <i>should</i> be a <pre>ng-css</pre> attributed <pre>LINK</pre> or <pre>STYLE</pre> tag, but any Angular element's <pre>$scope</pre> can be imported.
+                </li>
+                <li>
+                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ prelink: 'myCss', live: false }"</strong>&gt;...&lt;/div&gt;</pre></pre>
+                    <br/>This will also import the <pre>$scope</pre>/option values from ID <i>myCss</i> while overriding the value of <pre>options.live</pre> to <pre>false</pre>.
+                    This is useful when you want to use a <pre class="ng">Variable</pre> within your <pre>style</pre> attribute but do not require it to be live-bound like its source (as used in 2 of the 3 <a href="#profiles">color profile selection boxes</a> above to demonstrate the concepts).
+                </li>
+            </ul>
+            Only the <pre>style</pre> attribute is effected by ngCss in this context using a non-isolate <pre>$scope</pre> (even when the referenced element is!).
+            This is accomplished by a bit of pre- and post-<pre>$compile</pre> slight-of-hand between the directive's <pre>template</pre> and <pre>link</pre> functions and custom linking code via a <pre>$watch</pre> or <pre>$on</pre>.
+
+
+            <a name="override"></a>
+            <h3>How To Override The Default Option Values</h3>
+            If you wish to override any of the default option values you can call <pre>ngCss.defaults</pre>, passing in the new default option values like so:
+            <blockquote>
+<pre>
+var ngCn = angular.module("ngCn", ["ngCss"]);
+
+ngCn.controller("ExampleController", ["$scope", "ngCss", function ($scope, ngCss) {
+    <strong>ngCss.defaults({ script: true });</strong>
+}]);
+</pre>
+            </blockquote>
+            In the example above, we reset the default value for <pre>options.script</pre> within ngCss to <pre>true</pre>.
+        </div>
+
+        
+        <div class="gettingstarted">
+            <h2>Getting Started</h2>
+
+            Assuming the default option values are in effect <a href="#options">as described above</a>:
+            <ol>
+                <li>
+                    <a href="https://github.com/campbeln/ngcss">Download ngCss From GitHub</a>
+                </li>
+                <li>
+                    Include the ngCss <pre>SCRIPT</pre> tag in the <pre>HEAD</pre> of your HTML document <strong>below</strong> your Angular <pre>SCRIPT</pre> tag:
+                    <blockquote>
+<pre>
+&lt;script type="text/javascript" src="<strong>angular.min.js</strong>"&gt;&lt;/script&gt;
+&lt;script type="text/javascript" src="<strong>angular.ngcss.min.js</strong>"&gt;&lt;/script&gt;
+</pre>
+                    </blockquote>
+                </li>
+                <li>
+                    Include the attribute <pre>ng-app="myAngularApp"</pre> in your HTML element (e.g. <pre>&lt;html ng-app="myAngularApp"&gt;</pre>) and setup <pre>myAngularApp</pre> to include the ngCss factory like so:
+                    <blockquote>
+<pre>
+&lt;script&gt;
+    var myAngularApp = angular.module("myAngularApp", [<strong>"ngCss"</strong>]);
+&lt;/script&gt;
+</pre>
+                    </blockquote>
+                </li>
+                <li>
+                    Add the <pre>ng-css</pre> attribute to the LINK and/or STYLE elements we want to process:
+                    <blockquote>
+<pre>
+&lt;style id="myCss" type="text/css" <strong>ng-css</strong>&gt;...&lt;/style&gt;
+
+&lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css" <strong>ng-css</strong>/&gt;
+</pre>
+                    </blockquote>
+                </li>
+                <li>
+                    Define the <a href="#options"><pre>options</pre></a> used by ngCss (if any):
+                    <blockquote>
+<pre>
+&lt;style id="myCss" type="text/css" <strong>ng-css="{ script: true, live: true }</strong>"&gt;...&lt;/style&gt;
+
+&lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css"
+    <strong>ng-css="{ script: true, live: true }</strong>"
+/&gt;
+</pre>
+                    </blockquote>
+                </li>
+                <li>
+                    Edit the CSS within the LINK and/or STYLE elements to use ngCss like this:
+                    <blockquote>
+<pre>
+<em class="comment">/*
+<em class="script">&lt;script&gt;
+    $scope.color = 'blue';
+&lt;/script&gt;</em>
+*/</em>
+DIV {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>;
+}
+</pre>
+                    </blockquote>
+                </li>
+                <li>
+                    (Optional) Consume ngCss (or any other <pre>$scope</pre>'s) <pre class="ng">Variable</pre>s within any element's <pre>style</pre> attribute like this:
+                    <blockquote>
+<pre>
+    &lt;span style="color: <strong><em class="ng">color</em></strong>;" <strong>ng-css="myCss"</strong>&gt;...&lt;/span&gt;
+
+    &lt;a href="http://opensourcetaekwondo.com/ngcss" style="color: <strong><em class="ng">color</em></strong>;"
+        <strong>ng-css="{ prelink: 'myExCss', live: false }"</strong>
+    &gt;...&lt;/span&gt;
+</pre>
+                    </blockquote>
+                    Technically, you can import any Angular element's <pre>$scope</pre> into the <pre>style</pre> attribute, but the intention is for you to reference <pre>ng-css</pre> attributed <pre>LINK</pre> or <pre>STYLE</pre> elements.
+                </li>
+            </ol>
+            NOTE: You are also permitted to use the attribute name <pre>data-ng-css</pre> in place of <pre>ng-css</pre> if you want to be <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes#data-*">HTML5 compliant</a>.
+        </div>
+
+
+        <div class="examples" ng-controller="ExamplesController">
+            <style ng-css="{ live: true, prelink: importMainScope }">
+                TABLE {
+                    margin: 1% 0 0 0;
+                    width: 100%;
+                }
+                    TABLE.liveExample {
+                        height: 300px;
+                    }
+                TABLE TH,
+                TABLE TD {
+                    white-space: nowrap;
+                    width: 1%;
+                    text-align: center;
+                    padding: 0 5px 0 5px;
+                }
+                TABLE TH {
+                    text-align: left;
+                }
+                TABLE TD.expand {
+                    white-space: normal;
+                    width: 99%;
+                    background-color: white;
+                    vertical-align: top;
+                    padding: 0;
+                }
+                TABLE TR:nth-child(odd) {
+                    background-color: /*{{oColors.gray}}*/;
+                }
+                TABLE UL {
+                    list-style: none;
+                    padding: 0;
+                    margin: -1% 0 0 0;
+                    right: 10%;
+                    position: absolute;
+                }
+                TABLE UL LI {
+                    float: right;
+                    margin: 0 2px 0 2px;
+                }
+                TABLE UL LABEL {
+                    padding: 5px 15px 5px 15px;
+                    background-color: /*{{oColors.gray}}*/;
+                }
+                TABLE IFRAME,
+                TABLE TEXTAREA,
+                TABLE DIV {
+                    width: 100%;
+                    display: none;
+                    height: 260px;
+                    margin: 19px 0 0 0;
+                    padding: 0;
+                    border: none;
+                    background-color: transparent;
+                }
+                TABLE DIV {
+                    line-height: 260px;
+                }
+                TABLE TEXTAREA {
+                    overflow: auto;
+                }
+                .show {
+                    display: block;
+                }
+                TABLE UL .active {
+                    font-weight: bold;
+                    background-color: /*{{oCSS.mainColor}}*/;
+                }
+            </style>
+
+            <h2>Examples</h2>
+            Configure your own example of ngCss:
+
+            <table>
+                <tr>
+                    <th><label for="type">HTML Tag</label></th>
+                    <td>
+                        <select id="type" ng-model="ex.tag">
+                            <option value="style">STYLE Tag</option>
+                            <option value="link">LINK Tag</option>
+                        </select>
+                    </td>
+                    <td class="expand" rowspan="99">
+                        <ul id="tabs">
+                            <li ng-click="showTab($event)">
+                                <label for="exampleFrame">Live Example</label>
+                            </li>
+                            <li ng-click="showTab($event)">
+                                <label for="exampleCode">Source Code</label>
+                            </li>
+                        </ul>
+                        <textarea id="exampleCode" wrap="off"></textarea>
+                        <iframe id="exampleFrame"></iframe>
+                        <div class="show">
+                            &#10094; Choose Your Options
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="script">Script</label></th>
+                    <td>
+                        <select id="script" ng-model="ex.script">
+                            <option value="false">False (Default)</option>
+                            <option value="true">True</option>
+                            <option value="'local'">Local Scoping</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="prelink">Prelink</label></th>
+                    <td>
+                        <select id="prelink" ng-model="ex.prelink">
+                            <option value="undefined" style="background-color: yellow;">undefined (Default)</option>
+                            <option value="{{ex.prelinkFunction}}" style="background-color: pink;">[Function]</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="live">Live</label></th>
+                    <td>
+                        <input id="live" type="checkbox" ng-model="ex.live" />
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="async">Async</label></th>
+                    <td>
+                        <input id="async" type="checkbox" ng-model="ex.async" />
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <button ng-click="buildExample()">Load Example</button>
+                    </td>
+                </tr>
+            </table>
+
+
+            <script language="template/ngCss" id="exampleCodeTemplate">
+<!--
+<html ng-app="ngCn" ng-controller="UserExampleController">
+    <head>
+        <title>ngCss User-Generated Example</title>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+
+<code type="link">
+        <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }">
+</code>
+<code type="style">
+        <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }">
+            /*<script>
+                console.log("Javascript code running in CSS with access to: \'" + (window.sScopeAccess || "sandbox") + "\'");
+            </script>*/
+
+            body {
+                color: /*{_{color}_}*/;
+            }
+            /*{_{inputCss | css:true:true}_}*/;
+        </style>
+</code>
+        <script type="text/javascript" src="js/angular.min.js"></script>
+        <script type="text/javascript" src="js/angular.ngcss.js"></script>
+        <script type="text/javascript">
+            //# Setup the required globals
+            var ngCn = angular.module("ngCn", ["ngCss"]),
+                sScopeAccess = "local"
+            ;
+
+            //# Define Angular page .controller
+            ngCn.controller("UserExampleController", ["$scope", "ngCss", function ($scope, ngCss) {
+<code type="noLive">                //# Import ngCss into our $scope (for use in the button's ng-click)
+                $scope.ngCss = ngCss;
+</code>
+<code type="prelink">
+                //# Setup the .prelink function in the global scope so the options has access to it (as it only has access to its own isolate $scope)
+                $scope.prelinkFn = function(fnCallback, $isolateScope, $element, $link) {
+                    //# Setup our $scope
+                    $scope.color = "red";
+                    $scope.inputCss = {
+                        _selector: "input",
+                        backgroundColor: "pink"
+                    };
+                    $scope.other$id = $isolateScope.$id;
+
+                    //# Replace the $isolateScope with our own $scope
+                    fnCallback($scope);
+                };
+</code>
+<code type="noPrelink">
+                //# Collect the $scope used by #myCss
+                ngCss.getScope("myCss", function($cssScope, isIsolate) {
+                    //# Setup the $cssScope
+                    $cssScope.color = "red";
+                    $cssScope.inputCss = {
+                        _selector: "input",
+                        backgroundColor: "yellow"
+                    };
+
+                    //# Copy the $cssScope into our own $scope
+                    $scope.$cssScope = $cssScope;
+
+                    //# If we are not .live we need to call .updateCss
+                    if (!{{ex.live}}) {
+                        ngCss.updateCss();
+                    }
+                });
+</code>
+            }]);
+        </script>
+    </head>
+    <body id="bodyTag">
+        User-generated example for ngCss using the following options:
+        <pre>{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }</pre>
+        
+        Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
+<code type="noPrelink">
+        <br/><input ng-model="$cssScope.color"/>
+</code>
+<code type="prelink">
+        <br/><input ng-model="color"/>
+</code>
+<code type="noLive">
+        <button ng-click="ngCss.updateCss()">Update Body Color</button>
+</code>
+<code type="prelink">
+        <p>
+            Current $scope.$id: {_{$id}_}
+            <br/>Original $scope.$id: {_{other$id}_}
+        </p>
+</code>
+    </body>
+</html>
+-->
+            </script>
+
+            <h3>Complex Example</h3>
+            This page is setup as a complex example; be sure to view source and explore the code for more examples and ideas.
+            The two live-bound STYLE elements share one <pre>$scope</pre> and are setup to allow for in-line SCRIPTs (so all of the data is setup within the STYLE element itself, not in the <pre>ng-controller</pre>) and it imports the <pre>$scope</pre> from the <pre>ng-controller</pre>.
+            Have a play with the various CSS values and see the changes live in this page:
+            <table id="liveExample" ng-controller="PageController">
+                <thead>
+                    <tr>
+                        <th>Selector</th>
+                        <th>Property</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>DIV.gotchas</td>
+                        <td>background-color</td>
+                        <td><input ng-model="$cssScope.oCSS.gotchas.backgroundColor" /></td>
+                    </tr>
+                    <tr>
+                        <td>BODY</td>
+                        <td>color</td>
+                        <td><input ng-model="$cssScope.oCSS.color" /></td>
+                    </tr>
+                    <tr>
+                        <td>BODY</td>
+                        <td>font-family</td>
+                        <td><input ng-model="$cssScope.oCSS.fontFamily" /></td>
+                    </tr>
+                    <tr>
+                        <td>[Pretty Font]</td>
+                        <td>font-family</td>
+                        <td><input ng-model="$cssScope.oCSS.fonts.pretty" /></td>
+                    </tr>
+                    <tr>
+                        <td>[Main Color]</td>
+                        <td>background-color</td>
+                        <td><input ng-model="$cssScope.oCSS.mainColor" /></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Jasmine Test Results</h3>
+            To be added...
+        </div>
+        
+
+        <div class="gotchas">
+            <h2>Gotchas</h2>
+
+            <ul>
+                <li>
+                    It is recommended to comment the <pre class="ng">Variable</pre>s (e.g. <pre>/*<i class="ng">Variable</i>*/</pre>) as the braces used by Angular are also used within CSS and these additional non-CSS-valid braces can cause issues with CSS editors.
+                    <strong>But...</strong> this will require you to modify your ngCss-enabled *.css files before CSS minimization as the commented <pre class="ng">Variable</pre>s will likely be removed during minimization.
+                </li>
+                <li>
+                    Any instances of <pre>&#123;&#123;</pre> followed by <pre>&#125;&#125;</pre> within your CSS will be eaten by <pre>$interpolate</pre> or will otherwise cause errors. Make sure you have whitespace between all braces that are not <em class="ng">Variable</em>s.
+                </li>
+
+                <li>
+                    As <pre>LINK</pre> tag CSS files are read via AJAX, the limitations of <a href="https://www.google.com/search?q=xmlhttprequest+cross+domain"><pre>XMLHttpRequest</pre></a> can restrict where you serve your CSS files from.
+                    If your CSS files exist on the same server, this is a non-issue.
+                </li>
+                <li>
+                    Each <pre>LINK</pre> tag is replaced by a new <pre>STYLE</pre> tag that contains the modified CSS file contents.
+                    This process can break some relative URLs within your CSS files (e.g. <pre>background-image: url("../img/a.png");</pre>).
+                    It is therefore recommended that you use absolute URLs within your CSS files (e.g. <pre>background-image: url("/img/a.png");</pre>) in order to avoid any such errors.
+                </li>
+                <li>
+                    Embedded <pre>SCRIPT</pre>s are all evaluated in series at initialization prior to CSS modification, so the following will not work as expected:
+                    <blockquote>
+<pre>
+<em class="comment">/*<em class="script">&lt;script&gt;
+    $scope.color = 'blue';
+&lt;/script&gt;</em>*/</em>
+DIV {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'blue' but gets 'green'</em>
+}
+
+<em class="comment">/*<em class="script">&lt;script&gt;
+    $scope.color = 'green';
+&lt;/script&gt;</em>*/</em>
+SPAN {
+    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'green'</em>
+}
+</pre>
+                    </blockquote>
+                    At initialization <pre>$scope.color</pre> will be set to "blue" then "green" prior to any CSS modification, so the <pre>color</pre> of both DIV and SPAN will be set to "green".
+                </li>
+                <li>
+                    <a name="browsersupport"></a>
+                    IE8+ is supported by ngCss out-of-the-box.<!--, with support back to IE6 once <pre>document.querySelectorAll</pre> and <pre>JSON.parse</pre> functionality has been polyfilled via <pre>cjsss.polyfill.js</pre> or with <a href="http://www.jquery.com/">jQuery</a> (which is auto-magicially imported) included prior to CjsSS.js. -->
+                    <br/>The required "advanced" JavaScript functionality is:
+                    <ul>
+                        <li>
+                            <a href="https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest">XMLHttpRequest</a> <!-- or IE6-7's <a href="http://toddmotto.com/writing-a-standalone-ajax-xhr-javascript-micro-library/">ActiveXObject</a> -->
+                        </li>
+                        <li>
+                            <a href="http://quirksmode.org/dom/core/#t12">getElementsByTagName</a> and
+                            <a href="http://quirksmode.org/dom/core/#t00">createElement</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Side Effects</h3>
+            <ul>
+                <li>
+                    Each <pre>LINK</pre> tag is replaced by a new <pre>STYLE</pre> tag that contains the modified CSS file contents.
+                    This is done so that the original unprocessed CSS referenced by the <pre>LINK</pre> tag does not apply to the webpage.
+                </li>
+                <li>
+                    Any ngCss attributed tags without a defined <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> has a unique ID (formatted as <i>ngCss###</i>) added so ngCss can track it internally.
+                </li>
+                <li>
+                    <strong>If you have elected to have a <pre>script</pre> of <pre>local</pre></strong>, ngCss-embedded Javascript has the ability to modify the global scope.
+                </li>
+                <li>
+                    And of course... the CSS within ngCss attributed tags is modified based on the embedded <i class="ng">Variable</i>s and related <pre>$scope</pre>.
+                </li>
+            </ul>
+        </div>
+
+
+        <div class="snake">
+            <div style="right: 1%; width: 10%; position: absolute;">
+                <a href="http://www.redbubble.com/people/leea1968/works/10796262-the-three-headed-knight?p=sticker">
+                    <img src="img/notsirrobin-sm.png" style="width: 100%;" />
+                </a>
+            </div>
+
+            
+            <h3>What is up with the 3-headed knight?</h3>
+            <p>
+                ngCss (Angular Cascading Style Sheet) is the union of three web technologies joined seemlessly (unnaturally?) into one solution.
+                Like <a href="http://opensourcetaekwondo.com/cjsss/">CjsSS.js</a>, the union of multiple technologies has been <i>logo-ized</i> as a multi-headed beastie and since Angular's logo is a shield we look to...
+            </p>
+            <p>
+                <a href="https://www.youtube.com/results?search_query=tale+of+Sir+Robin">The Tale Of Sir Robin</a> (which is not to be confused with <a href="https://www.youtube.com/watch?v=zIV4poUZAQo">The Knights Who Say... <i>NI!</i></a>).
+            </p>
+        </div>
+
+
+        <a name="about"></a>
+        <div class="about">
+            <img src="img/campbeln.png" style="left: 1%; width: 8%; position: absolute;" />
+            <form target="_top" method="post" action="https://www.paypal.com/cgi-bin/webscr">
+                <input type="hidden" value="_s-xclick" name="cmd">
+                <input type="hidden" value="7HPTRFK8W53M4" name="hosted_button_id">
+                <button class="donate" name="submit">Developer Tip Jar</button>
+            </form>
+
+            <p>
+                ngCss is an Angular Directive+Filter+Factory made by Nick Campbell, &copy; 2014.
+            </p>
+            <p>
+                ngCss is released under the <a href="http://opensource.org/licenses/MIT">MIT License</a>. See the license.txt file in the <a href="https://github.com/campbeln/ngcss">source code</a> for copy permission.
+            </p>
+            <p>
+                Nick is a web nerd who likes to tinker in his spare time; ngCss is a product of that tinkering.
+                Development is not supported by advertising nor the marketing of your email addresses.
+                If you find this code useful, please consider tossing a few dollars into my tip jar.
+                If you are a company that finds this code useful, please feel free to toss more than a few dollars into my tip jar ;)
+            </p>
+        </div>
+
+
+        <script>
+            (function init() {
+                var w = window,
+                    d = document,
+                    e = d.documentElement,
+                    g = d.body || d.getElementsByTagName('body')[0],
+                    x = w.innerWidth || e.clientWidth || g.clientWidth,
+                    y = w.innerHeight || e.clientHeight || g.clientHeight,
+                    h = (y * 0.55) + "px",
+                    $nsr = d.getElementById("nsr")
+                ;
+
+                //# Set the .height of not Sir Robin
+                $nsr.setAttribute("style", "height:" + h);
+                $nsr.style.height = h;
+
+
+                //# Spin through the profiles auto-majicially to demo the functionality
+                var iTimeoutID,
+                    iCount = 0,
+                    iCurrent = -1,
+                    $lis = document.getElementById("demo").children,
+                    fnAutoClick = function() {
+                        iCount++;
+                        iCurrent++;
+
+                        //# Ensure iCurrent is within the confines of the $lis
+                        if (iCurrent >= $lis.length) {
+                            iCurrent = 0;
+                        }
+
+                        //# .click the iCurrent $lis
+                        $lis[iCurrent].click();
+
+                        //# Only run the demo a hand-full of times back to the original profile
+                        if (iCount < 8) {
+                            iTimeoutID = setTimeout(fnAutoClick, 1500);
+                        }
+                    }
+                ;
+
+                //# Kickoff the demo
+                fnAutoClick();
+            })();
+        </script>
+    </body>
+</html>
