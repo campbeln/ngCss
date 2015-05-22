@@ -1,8 +1,8 @@
-<html ng-app="ngCn">
+<html ng-app="myAngularApp">
     <head>
-        <title>ngCss :: Cascading Angular Style Sheets :: Next Generation CSS Preprocessor | Reprocessor</title>
+        <title>ngCss :: Angular Binding in CSS (Don't Call It A CSS Preprocessor)</title>
         
-        <style type="text/css" id="ngCss" ng-css="{ script: true, live: true }">
+        <style type="text/css" id="ngCss" ng-css="{ script: 'global', live: true }">
             /*
             <script>
                 //#
@@ -171,6 +171,15 @@
                 height: 500px;
                 background-color: /*{{oCSS.mainColor}}*/;
                 margin-top: 1em;
+            }
+
+            .strike {
+                text-decoration: line-through;
+            }
+            .ngcss {
+            }
+            .cjsss {
+                text-decoration: line-through;
             }
 
             .donate,
@@ -376,40 +385,44 @@
         </style>
 
 
-        <script type="text/javascript" src="js/angular.min.js"></script>
+        <script type="text/javascript" src="js/angular.js"></script>
         <script type="text/javascript" src="js/angular.ngcss.js"></script>
         <script type="text/javascript">
             //# Setup the required globals
-            var ngCn = angular.module("ngCn", ['ngCss']);
+            var myAngularApp = angular.module("myAngularApp", ['ngCss']);
 
             //# Define Angular page .controller
-            ngCn.controller('PageController', ["$scope", "ngCss", function ($scope, ngCss) {
-                var oCSS;
+            myAngularApp.controller('PageController', ["$scope", "ngCss", function ($scope, ngCss) {
+                var oCSS = {};
 
                 //# Safely converts "rgb(x,x,x)" into "#xxxxxx"
                 function rgb2hex(rgb) {
-                    if (/^#[0-9A-F]{6}$/i.test(rgb)) return rgb;
-
-                    rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
                     function hex(x) {
                         return ("0" + parseInt(x).toString(16)).slice(-2);
                     }
-                    return "#" + (hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3])).toUpperCase();
+
+                    if (/^#[0-9A-F]{6}$/i.test(rgb)) return rgb;
+
+                    rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+                    return (rgb ? "#" + (hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3])).toUpperCase() : "");
                 }
 
-                //#
-                if (!$scope.$cssScope) {
-                    //# Collect a reference to the $cssScope via ngCss's .getScope
-                    ngCss.getScope("ngCss", function($cssScope, bIsIsolate) {
-                        $scope.$cssScope = $cssScope;
-                        oCSS = $cssScope.oCSS;
+
+                //# 
+                $scope.init = function() {
+                    //# Collect a reference to the $cssScope via ngCss's .scope.get
+                    $scope.$cssScope = ngCss.scope.get("#ngCss");
+
+                    //# 
+                    if ($scope.$cssScope && $scope.$cssScope.oCSS) {
+                        oCSS = $scope.$cssScope.oCSS;
                         oCSS.data = {
-                            fonts: $cssScope.oFonts,
-                            colors: $cssScope.oColors,
-                            sets: $cssScope.oColorSets
+                            fonts: $scope.$cssScope.oFonts,
+                            colors: $scope.$cssScope.oColors,
+                            sets: $scope.$cssScope.oColorSets
                         };
-                    });
-                }
+                    }
+                };
 
 
                 //# Updates the page's CSS to the user-selected profile
@@ -479,11 +492,11 @@
                         }
                     }
                 };
-            }]); //# ngCn.controller('PageController'...
+            }]); //# myAngularApp.controller('PageController'...
 
 
                 //# Define Angular page .controller
-            ngCn.controller('ExamplesController', ["$scope", "$interpolate", "ngCss", function ($scope, $interpolate, ngCss) {
+            myAngularApp.controller('ExamplesController', ["$scope", "$interpolate", "ngCss", function ($scope, $interpolate, ngCss) {
                 var $iFrame = angular.element(document.getElementById("exampleFrame")),
                     $codeTemplate = document.getElementById("exampleCodeTemplate"),
                     $code = document.getElementById("exampleCode")
@@ -499,20 +512,20 @@
 
                 //#
                 $scope.ex = {
-                    prelinkFunction: 'prelinkFn',
+                    scopeFunction: 'scopeFn',
                     tag: "style",
                     live: false,
                     async: true,
-                    prelink: 'undefined',
+                    scope: 'undefined',
                     script: false
                 };
 
 
                 //#
-                $scope.importMainScope = function(fnCallback, $isolateScope, $element, $link) {
-                    ngCss.getScope("ngCss", function($cssScope, bIsIsolate) {
-                        fnCallback($cssScope);
-                    });
+                $scope.importMainScope = function(_element, oCacheEntry) {
+                    console.log("importMainScope called!");
+
+                    return "#ngCss";
                 };
 
 
@@ -529,7 +542,7 @@
                     $win = $newiFrame.contentWindow;
 
                     //#
-                    sCode = removeCode($codeTemplate.innerHTML, ($scope.ex.prelink === $scope.ex.prelinkFunction ? "noPrelink" : "prelink"));
+                    sCode = removeCode($codeTemplate.innerHTML, ($scope.ex.scope === $scope.ex.scopeFunction ? "noScope" : "scope"));
                     sCode = removeCode(sCode, ($scope.ex.tag === "style" ? "link" : "style"));
                     sCode = removeCode(sCode, ($scope.ex.live ? "noLive" : "live"));
                     sCode = sCode.replace(/<(\/)?code.*?>/gi, "").replace(/<!--\n/, "").replace(/-->\n/, "").replace(/\n\n\n/g, "\n");
@@ -538,6 +551,7 @@
                     //#
                     sCode = sCode.replace(/\/\*{_{/g, "{{").replace(/}_}\*\//g, "}}")
                         .replace(/{_{/g, "{{").replace(/}_}/g, "}}")
+                        .replace(/<\/ script>/gi, "</" + "script>")
                     ;
 
                     //#
@@ -571,13 +585,11 @@
                     $li.className = "active";
                     $content.className = "show";
                 };
-            }]); //# ngCn.controller('ExamplesController'...
+            }]); //# myAngularApp.controller('ExamplesController'...
         </script>
-
-
     </head>    
     <body>
-        <div class="splash" ng-controller="PageController">
+        <div class="splash" ng-controller="PageController" ng-init="init()">
             <a class="download" href="https://github.com/campbeln/ngcss">Download From GitHub</a>
 
             <div style="position: absolute; left: 50%; top: -1.5%; width: 9%; z-index: -1;">
@@ -595,12 +607,12 @@
 
             <a name="profiles"></a>
             <ul id="demo" ng-init="init()">
-                <li style="background-color: /*{{oColors.blue}}*/;" ng-css="{ prelink: 'ngCss', live: false }" ng-click="updateCSS($event)"></li>
-                <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ prelink: 'ngCss', live: false }" class="active" ng-click="updateCSS($event)"></li>
-                <li style="background-color: /*{{oColors.green}}*/;" ng-css="ngCss" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.blue}}*/;" ng-css="#ngCss" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ script: '#ngCss', live: true }" class="active" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.green}}*/;" ng-css="#ngCss" id="neeker" ng-click="updateCSS($event)"></li>
             </ul>
 
-            <span class="tagline">CSS + JavaScript + Angular = Next Generation CSS Preprocessor | Reprocessor</span>
+            <!-- span class="tagline">CSS + JavaScript + Angular = Angular-powered CSS</span -->
         </div>
 
         
@@ -613,7 +625,7 @@
                 <li><a href="#browsersupport"><strong>Browser Support:</strong></a> <a href="https://docs.angularjs.org/guide/ie">Same as Angular 1.2</a>; IE8+</li>
                     <li><strong>Licensing Fees:</strong> $0, nada, nutin' (licensed under the <a href="http://opensource.org/licenses/MIT">MIT License</a>) but <a href="#about">Nick does accept tips</a></li>
                 <li><strong>Installation:</strong> n/a, just include <pre>angular.ngcss.min.js</pre></li>
-                    <li><strong>Tiny!</strong> Only ~2,500 bytes compressed</li>
+                    <li><strong>Tiny!</strong> Only ~5,000 bytes compressed</li>
 
                 <li>CSS can be live-bound or updated via the custom <pre>$broadcast</pre> event <em>updateCss</em></li>
                     <li><pre>$scope</pre> can be initilized within the CSS itself, allowing for complete isolation of CSS-related code</li>
@@ -630,11 +642,11 @@
                     <li><pre>$scope</pre> can be isolated or imported from any Angular <pre>$element</pre></li>
                 <li>Ability to use <pre class="ng">Variable</pre>s within <pre>style</pre> attributes</li>
                     <li>Supports external <pre>SCRIPT</pre> references within the CSS (e.g. <pre>&lt;script src='<a href="https://github.com/gka/chroma.js">https://github.com/gka/chroma.js</a>'&gt;&lt;/script&gt;</pre>).</li>
-                <li>~550 lines of source code are fully commented and accessible to the brave and not-so-brave alike</li>
+                <li>Source code is fully commented and accessible to the brave and not-so-brave alike</li>
             </ul>
             <!-- http://www.styleweekly.com/richmond/the-hr-department/Content?oid=1721447 -->
             <img src="img/twistedsister.png" style="position: absolute; width: 7%; left: 1%; margin-top: -0.7%;" alt="Our (twisted) sister project: CjsSS.js" />
-            Check out the Vanilla Javascript (twisted) sister project <a href="http://opensourcetaekwondo.com/cjsss/">CjsSS.js</a> for a CSS Preprocessor | Reprocessor sans Angular.
+            Check out the Vanilla Javascript (twisted) sister project <a href="http://opensourcetaekwondo.com/cjsss/">CjsSS.js</a> for Javascript binding in CSS sans Angular.
         </div>
 
 
@@ -642,104 +654,128 @@
         <div class="options cf">
             <h2>Options</h2>
             <div class="cf">
-                Option values can be passed into ngCss in a few places:
+                Option values can be passed into ngCss in a number of locations:
                 <ol>
                     <li>
-                        <pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ prelink: 'myCss', live: false }"</strong>&gt;...&lt;/div&gt;</pre>
+                        <pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ scope: '#myCss', live: true }"</strong>&gt;...&lt;/div&gt;</pre>
                         <br/>overrides:
                     </li>
                     <li>
-                        <pre>&lt;style type="text/css" id="myCss" <strong>ng-css='{ live: true }'</strong> /&gt;...&lt;/style&gt;</pre>
+                        <pre>&lt;style type="text/css" id="myCss" <strong>ng-css="{ live: false }"</strong> /&gt;...&lt;/style&gt;</pre>
                         <br/>or
-                        <br/><pre>&lt;link rel="stylesheet" type="text/css" id="myCss" href="css/site.css" <strong>ng-css='{ live: true }'</strong> /&gt;</pre>
+                        <br/><pre>&lt;link rel="stylesheet" type="text/css" id="myCss" href="css/site.css" <strong>ng-css="{ live: false }"</strong> /&gt;</pre>
                         <br/>overrides:
                     </li>
                     <li>
-                        The default values described below (<a href="#override">which can be overridden</a>).
+                        When placed on the first line within the CSS, <pre><strong>/*ngcss({ live: true })*/</strong></pre>
+                        <br/>overrides:
+                    </li>
+                    <li>
+                        The default values described below (<a href="#override">which can be programmatically overridden</a>).
                     </li>
                 </ol>
-                In the example above, <pre>options.live</pre> will be set to <pre>false</pre> within the context of the <pre>DIV</pre> as the <pre>DIV</pre> tag's option values override the <pre>STYLE</pre> / <pre>LINK</pre> tags' option values.
-                <pre>options.live</pre> will be set to <pre>true</pre> within the context of the <pre>STYLE</pre> / <pre>LINK</pre> tags' which overrides the default value (<pre>false</pre>).
+                In the example above, <pre>options.live</pre> will be set to <pre>true</pre> within the context of the <pre>DIV</pre> as the <pre>DIV</pre> tag's option values override the <pre>STYLE</pre> / <pre>LINK</pre> tags' option values.
+                <pre>options.live</pre> will be set to <pre>false</pre> within the context of the <pre>STYLE</pre> / <pre>LINK</pre> tags' which overrides the CSS's inline option values.
+                <pre>options.live</pre> was set to <pre>true</pre> within the CSS's inline option values which would have overriden the default value (<pre>false</pre>), but it never takes effect due to the <pre>STYLE</pre> / <pre>LINK</pre> tags' option values.
+            
+                <div class="note">
+                    The use of the CSS's inline option values (#3) allows you to fully configure all aspects of ngCss within the CSS itself.
+                </div>
             </div>
 
             <div class="column c1of2">
-                <h3>prelink</h3>
-                <div>
-                    <em>VARIANT (see valid values below)</em>
-                    <em>false</em>
-                    Callback hook before the directive wires up <pre>$scope</pre> linking.
-                    This hook allows you to modify the <pre>$scope</pre> that will be in effect for the directive and/or the <pre>$element</pre> prior to rendering the directive:
-                    <ul>
-                        <li>
-                            <pre><pre class="i">falsey</pre></pre> - <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate scope</a>.
-                            The directive will operate with its own isolated <pre>$scope</pre>.
-                        </li>
-                        <li>
-                            <pre class="i">string</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a>).
-                            The <pre class="i">string</pre> will be interpreted as an ID and the <pre>$scope</pre> in effect for the referenced element will be imported.
-                        </li>
-                        <li>
-                            <pre class="i">object</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a> or <a href="https://developer.mozilla.org/en-US/docs/Web/API/element">DOM element</a>).
-                            The <pre>$scope</pre> in effect for the referenced element will be imported.
-                        </li>
-                        <li>
-                            <pre class="i">object</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Javascript Object</a>).
-                            The passed <pre class="i">object</pre> will be <a href="https://docs.angularjs.org/api/ng/function/angular.extend"><pre>extend</pre></a>ed into the directive's isolated <pre>$scope</pre>.
-                        </li>
-                        <li>
-                            <pre class="i">function</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions#Function_constructor_vs._function_declaration_vs._function_expression">function object</a>).
-                            This <pre class="i">function</pre> will be called with 4 arguments:
-                            <ol>
-                                <li>
-                                    <pre>fnCallback</pre> (as a <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Functions#Function_constructor_vs._function_declaration_vs._function_expression">function object</a>). The function to call on completion (e.g. <pre>fnCallback();</pre> or <pre>fnCallback(<a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">$newScope</a>);</pre>)
-                                </li>
-                                <li>
-                                    <pre>$scope</pre> (as an <a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">Angular Scope</a>). The default <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate scope</a> in effect for the directive.
-                                </li>
-                                <li>
-                                    <pre>$element</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a>). The directive's <pre>$element</pre>.
-                                </li>
-                                <li>
-                                    <pre>$link</pre> (as an <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element (jqLite/jQuery)</a> or <pre>undefined</pre> for non-LINK tags). The replaced <pre>LINK</pre> element.
-                                </li>
-                            </ol>
-                            <div class="note">
-                                If you do not call <pre>fnCallback</pre> the directive will not be properly wired up.
-                            </div>
-                            <div class="note">
-                                If you wish to replace the default isolated <pre>$scope</pre> with a <pre>$newScope</pre>, pass it in as the first argument in the <pre>fnCallback</pre> function (e.g. <pre>fnCallback($newScope);</pre>).
-                                The <pre>$newScope</pre> object MUST be an <a href="https://docs.angularjs.org/api/ng/type/$rootScope.Scope">Angular Scope</a>, else the directive will not function.
-                            </div>
-                            <div class="note">
-                                If a <pre>$link</pre> is passed you can safely <pre>$compile</pre> the <pre>$element</pre>, though it is advisable to remove the <pre>ng-css</pre> attribute before compilation (e.g. <pre>$element.attr("ng-css", "")</pre>) to avoid an unnecessary second call to ngCss.
-                            </div>
-                        </li>
-                    </ul>
-                    <div class="note">
-                        Each <pre>ng-css</pre> attributed <pre>LINK</pre> tag is replaced with a <pre>STYLE</pre> tag with only the <pre>ng-css</pre> attribute copied across.
-                        If you require additional attributes or processing to apply to these created <pre>STYLE</pre> tags, you can make any necessary modifications to the <pre>$element</pre> within a <pre>prelink</pre> <pre class="i">function</pre>.
-                    </div>
-                </div>
-            </div>
-            <div class="column c2of2">
                 <h3>script</h3>
                 <div>
                     <em>VARIANT (see valid values below)</em>
-                    <em>false</em>
-                    The <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/">Javascript scope</a> that the ngCss-embedded Javascript will be <pre>eval</pre>uated within:
+                    <em>"isolated"</em>
+                    <!--The <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/">Javascript scope</a> the CSS embedded <pre>SCRIPT</pre> tags  will be <pre>eval</pre>uated within as well as the <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a> in effect for the directive:-->
+                    The <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/">Javascript scope</a> that the CSS embedded <pre>SCRIPT</pre> tags will be <pre>eval</pre>uated within:
+                    <ul>
+                        <li class="ngcss">
+                            <pre>false</pre> -
+                            CSS embedded <pre>SCRIPT</pre> tags are not evaluated.
+                        </li>
+                        <li>
+                            <pre>"isolated"</pre> -
+                            a new <a href='http://www.html5rocks.com/en/tutorials/security/sandboxed-iframes/'>isolated <pre>IFRAME</pre> Javascript scope</a>.
+                        </li>
+                        <li class="strike">
+                            <pre>"sandbox"</pre> -
+                            a new <a href='http://www.html5rocks.com/en/tutorials/security/sandboxed-iframes/#privilege-separation'><pre>sandbox</pre>ed <pre>IFRAME</pre> Javascript scope</a>. <a href="#*">&dagger;</a>
+                        </li>
+                        <li>
+                            <pre>"global"</pre> -
+                            the <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>global Javascript scope</a>.
+                        </li>
+                        <li>
+                            <pre>"local"</pre> -
+                            a new <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>local (closure) Javascript scope</a>.
+                        </li>
+                        <li>
+                            <pre>"useStrict"</pre> -
+                            a new <a href='https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#Simplifying_variable_uses'>"use strict" local (closure) Javascript scope</a>.
+                        </li>
+                        <li class="strike">
+                            <pre>"json"</pre> -
+                            the <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse">JSON parser</a> (no Javascript scope applies).
+                        </li>
+                        <li>
+                            <pre>"#ID"</pre> -
+                            the <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>Javascript scope</a> in effect for the referenced <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/id">HTML Element.id</a> <!--(e.g. <pre>document.querySelector('#ID');</pre>)--> will be used. <a href="#**">&Dagger;</a>
+                        </li>
+                        <li>
+                            <pre class="i">object</pre> -
+                            <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object">Javascript Objects</a> can be provided in a number of flavors:
+                            <ul>
+                                <li>
+                                    <a href="https://docs.angularjs.org/api/ng/function/angular.element">angular.element</a>, <a href="http://api.jquery.com/jQuery/">jQuery</a> or <a href="https://developer.mozilla.org/en-US/docs/Web/API/element">DOM element</a> - 
+                                    the <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>Javascript scope</a> in effect for the referenced <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element">HTML Element</a> will be used. <a href="#**">&Dagger;</a>
+                                </li>
+                                <li>
+                                    <pre>{ script: <pre class="i">variant</pre>, context: <pre class="i">object</pre> }</pre> -
+                                    <pre>script</pre><a href="#***">*</a> resolves to either <pre>"local"</pre> or <pre>"useStrict"</pre> and <pre>context</pre> is provided as <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/"><pre>this</pre></a> within the evaluated Javascript.
+                                </li>
+                                <li>
+                                    otherwise -
+                                    <pre class="i">object</pre> is provided as <a href="http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/"><pre>this</pre></a> within a new <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'><pre>"local"</pre> (closure) Javascript scope</a>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <pre class="i">function</pre> -
+                            a <a href="#****">function**</a> that returns a <pre>variant</pre> representing any of the listed values.
+                        </li>
+                        <!--<li>
+                                <pre class="i">function</pre> -
+                                a <a href="#****">function**</a> present in the <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>global Javascript scope</a> (e.g. <pre>window.myFunction</pre>) that returns a <pre>variant</pre> representing any of the listed values.
+                        </li>-->
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="column c2of2">
+                <h3>scope</h3>
+                <div>
+                    <em>VARIANT (see valid values below)</em>
+                    <em>"" (e.g. a <pre class="i">null-string</pre>)</em>
+                    The <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a> that will be used by the directive:
                     <ul>
                         <li>
-                            <pre class="i">falsey</pre> - embedded Javascript is not evaluated.
-                            <pre>SCRIPT</pre> tags embedded within the CSS are ignored.
+                            <pre>"isolated"</pre> -
+                            the directive will operate with its own <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate <pre>$scope</pre></a>.
                         </li>
                         <li>
-                            <pre class="i">truthy</pre> - <a href="http://www.html5rocks.com/en/tutorials/security/sandboxed-iframes/">iFrame sandboxed Javascript</a>.
-                            <pre>SCRIPT</pre> tags embedded within the CSS will be evaluated within a sandboxed window object exposing only the <pre>$scope</pre>.<a href="#*">*</a>
-                            Evaluated Javascript is cached within the sandbox and is not re-evaulated during reprocessing.
+                            <pre>"#ID"</pre> -
+                            the <a href="https://docs.angularjs.org/guide/scope"><pre>$scope</pre></a> in effect for the referenced <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> will be imported.
                         </li>
                         <li>
-                            <pre>"local"</pre> - <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Strict_mode#Simplifying_variable_uses">non-"use strict"</a> <a href="https://developer.mozilla.org/en/docs/Web/JavaScript/Guide/Closures">closure scope</a>.
-                            Javascript is evaluated within the host window object with full access to global resources, but once execution is complete embedded Javascript resources are no longer accessible unless set (or leaked) into the global scope.
+                            <pre class="i">function</pre> -
+                            a <a href="#****">function**</a> that returns a <pre>string</pre> representing one of the listed values.
+                        </li>
+                        <li>
+                            <i>otherwise</i> -
+                            the directive will operate in the <a href="https://docs.angularjs.org/guide/directive">context of the original Angular scope</a>.
+                            <!--the <a href="https://docs.angularjs.org/guide/scope"><pre>$scope</pre></a> in effect for the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> referred to in the defined parent Javascript scope (as<pre>script</pre>) will be imported.-->
                         </li>
                     </ul>
                 </div>
@@ -764,8 +800,37 @@
             </div>
 
             <div style="clear: both; padding-top: 1%;">
+                <!--* The <pre>IFRAME</pre>'s <pre>window.parent</pre> is set to <pre>null</pre>.-->
                 <a name="*"></a>
-                * The <pre>IFRAME</pre>'s <pre>window.parent</pre> is set to <pre>null</pre>.
+                &dagger; - There is no reason to use <pre>sandbox</pre> over <pre>isolated</pre> if your CSS embedded <pre>SCRIPT</pre> tags are from a trusted source, especially considering the limitations of <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage">postMessage</a>.
+
+                <br /><a name="**"></a>
+                &Dagger; - Allows for the sharing of functionality and variables across invocations.
+
+                <br /><a name="***"></a>
+                * - <pre><pre class="i">object</pre>.script</pre> must create a new Javascript scope; it cannot link to an existing scope.
+
+                <br /><a name="****"></a>
+                ** - <pre class="i">function</pre>s are passed 2 arguments:
+                <ol>
+                    <li>
+                        <pre>domElement</pre> -
+                        the directive's <a href="https://developer.mozilla.org/en-US/docs/Web/API/element">DOM element</a>.
+                    </li>
+                    <li>
+                        <pre>metadata</pre> -
+                        an object representing the internal metadata pertaining to the element.
+                    </li>
+                </ol>
+
+                <div class="note">
+                    Options settings can reference properties in the <a href="https://docs.angularjs.org/guide/directive">context of the original Angular scope</a>, but <strong>not</strong> within the Angular scope created/imported via <pre>options.scope</pre>.
+                </div>
+
+                <div class="note">
+                    Each <pre>ng-css</pre> attributed <pre>LINK</pre> tag is replaced with a <pre>STYLE</pre> tag with only the <pre>ng-css</pre> attribute copied across.
+                    If you require additional attributes or processing to apply to these created <pre>STYLE</pre> tags, you can make any necessary modifications to the <a href="https://developer.mozilla.org/en-US/docs/Web/API/element">DOM element</a> within a <pre class="i">function</pre>.
+                </div>
             </div>
 
 
@@ -774,33 +839,33 @@
             When applying ngCss to a <pre>style</pre> attribute, you have two options when setting the value of <pre>ng-css</pre>'s in-line options:
             <ul>
                 <li>
-                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="myCss"</strong>&gt;...&lt;/div&gt;</pre></pre>
-                    <br/>This will import the <pre>$scope</pre> and option values from the HTML element with the ID <i>myCss</i> (e.g. "<i>myCss</i>" overrides <pre>options.prelink</pre>).
+                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="#myCss"</strong>&gt;...&lt;/div&gt;</pre></pre>
+                    <br/>This will import the <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a> and option values from the referenced <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element/id">HTML Element</a> with the ID <i>myCss</i> (e.g. "<i>#myCss</i>" overrides <pre>options.scope</pre>).
                     This element <i>should</i> be a <pre>ng-css</pre> attributed <pre>LINK</pre> or <pre>STYLE</pre> tag, but any Angular element's <pre>$scope</pre> can be imported.
                 </li>
                 <li>
-                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ prelink: 'myCss', live: false }"</strong>&gt;...&lt;/div&gt;</pre></pre>
-                    <br/>This will also import the <pre>$scope</pre>/option values from ID <i>myCss</i> while overriding the value of <pre>options.live</pre> to <pre>false</pre>.
-                    This is useful when you want to use a <pre class="ng">Variable</pre> within your <pre>style</pre> attribute but do not require it to be live-bound like its source (as used in 2 of the 3 <a href="#profiles">color profile selection boxes</a> above to demonstrate the concepts).
+                    <pre><pre>&lt;div style="color: <span class='ng'>color</span>;" <strong>ng-css="{ scope: '#myCss', live: true }"</strong>&gt;...&lt;/div&gt;</pre></pre>
+                    <br/>This will also import the <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a>/option values from ID <i>myCss</i> while overriding the value of <pre>options.live</pre> to <pre>true</pre>.
+                    This is useful when you want to use a <pre class="ng">Variable</pre> within your <pre>style</pre> attribute but do not require it to be live-bound like its source (as used in 2 of the 3 <a href="#profiles">color profile selection boxes</a> above to demonstrate the concept).
                 </li>
             </ul>
             Only the <pre>style</pre> attribute is effected by ngCss in this context using a non-isolate <pre>$scope</pre> (even when the referenced element is!).
-            This is accomplished by a bit of pre- and post-<pre>$compile</pre> slight-of-hand between the directive's <pre>template</pre> and <pre>link</pre> functions and custom linking code via a <pre>$watch</pre> or <pre>$on</pre>.
+            This is accomplished by a bit of pre- and post-<pre>$compile</pre> slight-of-hand between the directive's <pre>template</pre> and <pre>link</pre> functions and custom linking code via a <pre>$watch</pre> (<pre>live: true</pre>) or <pre>$on</pre> (<pre>live: false</pre>).
 
 
             <a name="override"></a>
             <h3>How To Override The Default Option Values</h3>
             If you wish to override any of the default option values you can call <pre>ngCss.defaults</pre>, passing in the new default option values like so:
             <blockquote>
-<pre>
-var ngCn = angular.module("ngCn", ["ngCss"]);
-
-ngCn.controller("ExampleController", ["$scope", "ngCss", function ($scope, ngCss) {
-    <strong>ngCss.defaults({ script: true });</strong>
-}]);
-</pre>
+                <pre>
+                var myAngularApp = angular.module("myAngularApp", ["ngCss"]);
+                
+                myAngularApp.controller("ExampleController", ["$scope", "ngCss", function ($scope, ngCss) {
+                    <strong>ngCss.defaults({ script: 'global' });</strong>
+                }]);
+                </pre>
             </blockquote>
-            In the example above, we reset the default value for <pre>options.script</pre> within ngCss to <pre>true</pre>.
+            In the example above, we reset the default value for <pre>options.script</pre> within ngCss to <pre>global</pre>.
         </div>
 
         
@@ -815,69 +880,69 @@ ngCn.controller("ExampleController", ["$scope", "ngCss", function ($scope, ngCss
                 <li>
                     Include the ngCss <pre>SCRIPT</pre> tag in the <pre>HEAD</pre> of your HTML document <strong>below</strong> your Angular <pre>SCRIPT</pre> tag:
                     <blockquote>
-<pre>
-&lt;script type="text/javascript" src="<strong>angular.min.js</strong>"&gt;&lt;/script&gt;
-&lt;script type="text/javascript" src="<strong>angular.ngcss.min.js</strong>"&gt;&lt;/script&gt;
-</pre>
+                        <pre>
+                        &lt;script type="text/javascript" src="<strong>angular.min.js</strong>"&gt;&lt;/script&gt;
+                        &lt;script type="text/javascript" src="<strong>angular.ngcss.min.js</strong>"&gt;&lt;/script&gt;
+                        </pre>
                     </blockquote>
                 </li>
                 <li>
                     Include the attribute <pre>ng-app="myAngularApp"</pre> in your HTML element (e.g. <pre>&lt;html ng-app="myAngularApp"&gt;</pre>) and setup <pre>myAngularApp</pre> to include the ngCss factory like so:
                     <blockquote>
-<pre>
-&lt;script&gt;
-    var myAngularApp = angular.module("myAngularApp", [<strong>"ngCss"</strong>]);
-&lt;/script&gt;
-</pre>
+                        <pre>
+                        &lt;script&gt;
+                            var myAngularApp = angular.module("myAngularApp", [<strong>"ngCss"</strong>]);
+                        &lt;/script&gt;
+                        </pre>
                     </blockquote>
                 </li>
                 <li>
                     Add the <pre>ng-css</pre> attribute to the LINK and/or STYLE elements we want to process:
                     <blockquote>
-<pre>
-&lt;style id="myCss" type="text/css" <strong>ng-css</strong>&gt;...&lt;/style&gt;
-
-&lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css" <strong>ng-css</strong>/&gt;
-</pre>
+                        <pre>
+                        &lt;style id="myCss" type="text/css" <strong>ng-css</strong>&gt;...&lt;/style&gt;
+                        
+                        &lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css" <strong>ng-css</strong>/&gt;
+                        </pre>
                     </blockquote>
                 </li>
                 <li>
                     Define the <a href="#options"><pre>options</pre></a> used by ngCss (if any):
                     <blockquote>
-<pre>
-&lt;style id="myCss" type="text/css" <strong>ng-css="{ script: true, live: true }</strong>"&gt;...&lt;/style&gt;
-
-&lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css"
-    <strong>ng-css="{ script: true, live: true }</strong>"
-/&gt;
-</pre>
+                        <pre>
+                        &lt;style id="myCss" type="text/css" <strong>ng-css="{ script: 'local', live: true }</strong>"&gt;...&lt;/style&gt;
+                        
+                        &lt;link id="myExCss" rel="stylesheet" type="text/css" href="css/site.css"
+                            <strong>ng-css="{ script: 'local', live: true }</strong>"
+                        /&gt;
+                        </pre>
                     </blockquote>
                 </li>
                 <li>
                     Edit the CSS within the LINK and/or STYLE elements to use ngCss like this:
                     <blockquote>
-<pre>
-<em class="comment">/*
-<em class="script">&lt;script&gt;
-    $scope.color = 'blue';
-&lt;/script&gt;</em>
-*/</em>
-DIV {
-    color: <em class="comment">/*<em class="script ng">color</em>*/</em>;
-}
-</pre>
+                        <pre>
+                        <em class="comment">/*
+                        <em class="script">&lt;script&gt;
+                            $scope.color = 'blue';
+                        &lt;/script&gt;</em>
+                        */</em>
+                        DIV {
+                            color: <em class="comment">/*<em class="script ng">color</em>*/</em>;
+                        }
+                        </pre>
                     </blockquote>
                 </li>
                 <li>
                     (Optional) Consume ngCss (or any other <pre>$scope</pre>'s) <pre class="ng">Variable</pre>s within any element's <pre>style</pre> attribute like this:
                     <blockquote>
-<pre>
-    &lt;span style="color: <strong><em class="ng">color</em></strong>;" <strong>ng-css="myCss"</strong>&gt;...&lt;/span&gt;
-
-    &lt;a href="http://opensourcetaekwondo.com/ngcss" style="color: <strong><em class="ng">color</em></strong>;"
-        <strong>ng-css="{ prelink: 'myExCss', live: false }"</strong>
-    &gt;...&lt;/span&gt;
-</pre>
+                        <pre>
+                        &lt;span style="color: <strong><em class="ng">color</em></strong>;" <strong>ng-css="#myCss"</strong>&gt;...&lt;/span&gt;
+                    
+                        &lt;a href="http://opensourcetaekwondo.com/ngcss" style="color: <strong><em class="ng">color</em></strong>;"
+                            <strong>ng-css="{ scope: '#myExCss', live: false }"</strong>
+                        &gt;...&lt;/span&gt;
+                        </pre>
                     </blockquote>
                     Technically, you can import any Angular element's <pre>$scope</pre> into the <pre>style</pre> attribute, but the intention is for you to reference <pre>ng-css</pre> attributed <pre>LINK</pre> or <pre>STYLE</pre> elements.
                 </li>
@@ -887,7 +952,7 @@ DIV {
 
 
         <div class="examples" ng-controller="ExamplesController">
-            <style ng-css="{ live: true, prelink: importMainScope }">
+            <style ng-css="{ live: true, scope: 'importMainScope' }">
                 TABLE {
                     margin: 1% 0 0 0;
                     width: 100%;
@@ -985,21 +1050,30 @@ DIV {
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="script">Script</label></th>
+                    <th><label for="script">Script (Javascript Scoping)</label></th>
                     <td>
                         <select id="script" ng-model="ex.script">
                             <option value="false">False (Default)</option>
-                            <option value="true">True</option>
-                            <option value="'local'">Local Scoping</option>
+                            <option value="'isolated'">Isolated</option>
+                            <option value="'sandbox'">Sandbox</option>
+                            <option value="'global'">Global</option>
+                            <option value="'local'">Local</option>
+                            <option value="'useStrict'">Use Strict</option>
+                            <option value="'#myCss'">#ID</option>
+                            <option value="{ object: true }">[object]</option>
+                            <option value="{{ex.scopeFunction}}">[function]</option>
+                            <option value="'propertyName'">[string] =&gt; $scope[string]</option>
                         </select>
                     </td>
                 </tr>
                 <tr>
-                    <th><label for="prelink">Prelink</label></th>
+                    <th><label for="scope">Scope (Angular Scoping)</label></th>
                     <td>
-                        <select id="prelink" ng-model="ex.prelink">
-                            <option value="undefined" style="background-color: yellow;">undefined (Default)</option>
-                            <option value="{{ex.prelinkFunction}}" style="background-color: pink;">[Function]</option>
+                        <select id="scope" ng-model="ex.scope">
+                            <option value="'#myCss'" style="background-color: yellow;">#ID</option>
+                            <option value="'isolated'">Isolate Scope</option>
+                            <option value="'propertyName'">[string] =&gt; $scope[string]</option>
+                            <option value="''" style="background-color: yellow;">Parent Scope</option>
                         </select>
                     </td>
                 </tr>
@@ -1023,18 +1097,137 @@ DIV {
             </table>
 
 
-            <script language="template/ngCss" id="exampleCodeTemplate">
+            <script type="text/ngCss-template" id="link.html">
+                <css>
+                    <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }">
+                </css>
+            </script>
+
+            <script type="text/ngCss-template" id="script.html">
+                <css>
+                    <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }">
+                        /*<script>
+                            console.log("Javascript code running in CSS with access to: \'" + (window.sScopeAccess || "sandbox") + "\'");
+                        </script>*/
+            
+                        body {
+                            color: /*{_{color}_}*/;
+                        }
+                        /*{_{inputCss | css:true:true}_}*/;
+                    </style>
+                </css>
+            </script>
+
+            <script type="text/ngCss-template" id="noLive.html">
+                <controller>
+                    //# Import ngCss into our $scope (for use in the button's ng-click)
+                    $scope.ngCss = ngCss;
+                </controller>
+                <content>
+                    <button ng-click="ngCss.updateCss()">Update Body Color</button>
+                </content>
+            </script>
+            
+            <script type="text/ngCss-template" id="scope.html">
+                <controller>
+                    //# Setup the .scope function in the global scope so the options have access to it (as it only has access to its own isolate $scope)
+                    $scope.scopeFn = function(fnCallback, $isolateScope, $element, $link) {
+                        //# Setup our $scope
+                        $scope.color = "red";
+                        $scope.inputCss = {
+                            _selector: "input",
+                            backgroundColor: "pink"
+                        };
+                        $scope.other$id = $isolateScope.$id;
+    
+                        //# Replace the $isolateScope with our own $scope
+                        fnCallback($scope);
+                    };
+                </controller>
+                <content>
+                    <br/><input ng-model="color"/>
+                </content>
+                <metrics>
+                    <p>
+                        Current $scope.$id: {_{$id}_}
+                        <br/>Original $scope.$id: {_{other$id}_}
+                    </p>
+                </metrics>
+            </script>
+            
+            <script type="text/ngCss-template" id="noScope.html">
+                <controller>
+                    $timeout(function() {
+                        //# Collect the $scope used by #myCss
+                        var $cssScope = ngCss.scope.get("#myCss");
+    
+                        console.log("$cssScope: ", $cssScope);
+    
+                        //# Setup the $cssScope
+                        $cssScope.color = "red";
+                        $cssScope.inputCss = {
+                            _selector: "input",
+                            backgroundColor: "yellow"
+                        };
+    
+                        //# Copy the $cssScope into our own $scope
+                        $scope.$cssScope = $cssScope;
+    
+                        //# If we are not .live we need to call .updateCss
+                        if (!{{ex.live}}) {
+                            ngCss.updateCss();
+                        }
+                    });                
+                </controller>
+                <content>
+                    <br/><input ng-model="$cssScope.color"/>
+                </content>
+            </script>
+            
+            <script type="text/ngCss-template" id="template.html">
+                <html ng-app="myAngularApp" ng-controller="UserExampleController">
+                    <head>
+                        <title>ngCss User-Generated Example</title>
+                        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+                        <css/>
+                        
+                        <script type="text/javascript" src="js/angular.min.js"></ script>
+                        <script type="text/javascript" src="js/angular.ngcss.js"></ script>
+                        <script type="text/javascript">
+                            //# Setup the required globals
+                            var myAngularApp = angular.module("myAngularApp", ["ngCss"]),
+                                sScopeAccess = "local"
+                            ;
+                
+                            //# Define Angular page .controller
+                            myAngularApp.controller("UserExampleController", ["$scope", "ngCss", "$timeout", function ($scope, ngCss, $timeout) {
+                                <controller/>
+                            }]);
+                        </ script>
+                    </head>
+                    <body id="bodyTag">
+                        User-generated example for ngCss using the following options:
+                        <pre>{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }</pre>
+                        
+                        Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
+                        <content/>
+                        <metrics/>
+                    </body>
+                </html>
+            </script>
+
+            <script type="text/ngCss-template" id="exampleCodeTemplate">
 <!--
-<html ng-app="ngCn" ng-controller="UserExampleController">
+<html ng-app="myAngularApp" ng-controller="UserExampleController">
     <head>
         <title>ngCss User-Generated Example</title>
         <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 
 <code type="link">
-        <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }">
+        <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }">
 </code>
 <code type="style">
-        <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }">
+        <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }">
             /*<script>
                 console.log("Javascript code running in CSS with access to: \'" + (window.sScopeAccess || "sandbox") + "\'");
             </script>*/
@@ -1049,18 +1242,18 @@ DIV {
         <script type="text/javascript" src="js/angular.ngcss.js"></script>
         <script type="text/javascript">
             //# Setup the required globals
-            var ngCn = angular.module("ngCn", ["ngCss"]),
+            var myAngularApp = angular.module("myAngularApp", ["ngCss"]),
                 sScopeAccess = "local"
             ;
 
             //# Define Angular page .controller
-            ngCn.controller("UserExampleController", ["$scope", "ngCss", function ($scope, ngCss) {
+            myAngularApp.controller("UserExampleController", ["$scope", "ngCss", "$timeout", function ($scope, ngCss, $timeout) {
 <code type="noLive">                //# Import ngCss into our $scope (for use in the button's ng-click)
                 $scope.ngCss = ngCss;
 </code>
-<code type="prelink">
-                //# Setup the .prelink function in the global scope so the options has access to it (as it only has access to its own isolate $scope)
-                $scope.prelinkFn = function(fnCallback, $isolateScope, $element, $link) {
+<code type="scope">
+                //# Setup the .scope function in the global scope so the options have access to it (as it only has access to its own isolate $scope)
+                $scope.scopeFn = function(fnCallback, $isolateScope, $element, $link) {
                     //# Setup our $scope
                     $scope.color = "red";
                     $scope.inputCss = {
@@ -1073,9 +1266,13 @@ DIV {
                     fnCallback($scope);
                 };
 </code>
-<code type="noPrelink">
-                //# Collect the $scope used by #myCss
-                ngCss.getScope("myCss", function($cssScope, isIsolate) {
+<code type="noScope">
+                $timeout(function() {
+                    //# Collect the $scope used by #myCss
+                    var $cssScope = ngCss.scope.get("#myCss");
+
+                    console.log("$cssScope: ", $cssScope);
+
                     //# Setup the $cssScope
                     $cssScope.color = "red";
                     $cssScope.inputCss = {
@@ -1097,19 +1294,19 @@ DIV {
     </head>
     <body id="bodyTag">
         User-generated example for ngCss using the following options:
-        <pre>{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, prelink: {{ex.prelink}} }</pre>
+        <pre>{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }</pre>
         
         Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
-<code type="noPrelink">
+<code type="noScope">
         <br/><input ng-model="$cssScope.color"/>
 </code>
-<code type="prelink">
+<code type="scope">
         <br/><input ng-model="color"/>
 </code>
 <code type="noLive">
         <button ng-click="ngCss.updateCss()">Update Body Color</button>
 </code>
-<code type="prelink">
+<code type="scope">
         <p>
             Current $scope.$id: {_{$id}_}
             <br/>Original $scope.$id: {_{other$id}_}
@@ -1160,9 +1357,6 @@ DIV {
                     </tr>
                 </tbody>
             </table>
-
-            <h3>Jasmine Test Results</h3>
-            To be added...
         </div>
         
 
@@ -1190,21 +1384,21 @@ DIV {
                 <li>
                     Embedded <pre>SCRIPT</pre>s are all evaluated in series at initialization prior to CSS modification, so the following will not work as expected:
                     <blockquote>
-<pre>
-<em class="comment">/*<em class="script">&lt;script&gt;
-    $scope.color = 'blue';
-&lt;/script&gt;</em>*/</em>
-DIV {
-    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'blue' but gets 'green'</em>
-}
-
-<em class="comment">/*<em class="script">&lt;script&gt;
-    $scope.color = 'green';
-&lt;/script&gt;</em>*/</em>
-SPAN {
-    color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'green'</em>
-}
-</pre>
+                        <pre>
+                        <em class="comment">/*<em class="script">&lt;script&gt;
+                            $scope.color = 'blue';
+                        &lt;/script&gt;</em>*/</em>
+                        DIV {
+                            color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'blue' but gets 'green'</em>
+                        }
+                        
+                        <em class="comment">/*<em class="script">&lt;script&gt;
+                            $scope.color = 'green';
+                        &lt;/script&gt;</em>*/</em>
+                        SPAN {
+                            color: <em class="comment">/*<em class="script ng">color</em>*/</em>; <em class="comment">//# expecting 'green'</em>
+                        }
+                        </pre>
                     </blockquote>
                     At initialization <pre>$scope.color</pre> will be set to "blue" then "green" prior to any CSS modification, so the <pre>color</pre> of both DIV and SPAN will be set to "green".
                 </li>
@@ -1234,10 +1428,10 @@ SPAN {
                     Any ngCss attributed tags without a defined <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> has a unique ID (formatted as <i>ngCss###</i>) added so ngCss can track it internally.
                 </li>
                 <li>
-                    <strong>If you have elected to have a <pre>script</pre> of <pre>local</pre></strong>, ngCss-embedded Javascript has the ability to modify the global scope.
+                    <strong>If you have elected to have a <pre>script</pre> value other than <pre>sandbox</pre></strong>, ngCss-embedded Javascript has the ability to modify the global scope.
                 </li>
                 <li>
-                    And of course... the CSS within ngCss attributed tags is modified based on the embedded <i class="ng">Variable</i>s and related <pre>$scope</pre>.
+                    And of course... the CSS within ngCss attributed tags is modified based on the embedded <i class="ng">Variable</i>s and related <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a>.
                 </li>
             </ul>
         </div>
@@ -1272,7 +1466,7 @@ SPAN {
             </form>
 
             <p>
-                ngCss is an Angular Directive+Filter+Factory made by Nick Campbell, &copy; 2014.
+                ngCss is an Angular Directive+Filter+Factory made by Nick Campbell, &copy; 2014-2015.
             </p>
             <p>
                 ngCss is released under the <a href="http://opensource.org/licenses/MIT">MIT License</a>. See the license.txt file in the <a href="https://github.com/campbeln/ngcss">source code</a> for copy permission.
@@ -1297,6 +1491,18 @@ SPAN {
                     h = (y * 0.55) + "px",
                     $nsr = d.getElementById("nsr")
                 ;
+
+                //# 
+                function processPre(a__tags) {
+                    var i, a_sMatch, sHTML;
+                    
+                    //# 
+                    for (i = 0; i < a__tags.length; i++) {
+                        sHTML = a__tags[i].innerHTML;
+                        a_sMatch = sHTML.match(/^(\s+)/);
+                        a__tags[i].innerHTML = sHTML.replace(new RegExp((a_sMatch ? a_sMatch[1].replace("\n", "") : ""), "g"), "")
+                    }
+                }
 
                 //# Set the .height of not Sir Robin
                 $nsr.setAttribute("style", "height:" + h);
@@ -1326,6 +1532,9 @@ SPAN {
                         }
                     }
                 ;
+                
+                //# 
+                processPre(document.getElementsByTagName("blockquote"));
 
                 //# Kickoff the demo
                 fnAutoClick();
