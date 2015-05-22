@@ -1,0 +1,85 @@
+<html ng-app="ngCn" ng-controller="demoController">
+    <head id="neek2">
+        <title>ngCss User-Generated Example</title>
+        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+        
+        <style type="text/css" id="myCssJs" ng-css="{ script: 'isolated', scope: 'isolated', live: false, async: false }">
+            /*<script>
+                var neek = { nick: true };
+                $scope.color = "lime";
+            </script>*/
+        </style>
+        <style type="text/css" id="myCss" ng-css="{ script: { ngcss: true, scope: 'global', context: {neek: 'campbeln'} }, scope: '#red', live: false, async: false }">
+            /*<script>
+                console.log("Javascript code running in CSS *" + (window.ngCn ? "with" : "without") + "* access to the page's `window` object utilizing Angular $scope.$id: " + $scope.$id, $scope);
+                if (window.neek) { console.log("I am sharing a Javascript scope!"); }
+                if (this && this.neek) { console.log("I have a context!"); }
+                console.log(this);
+                $scope.color = $scope.color || "purple";
+            </script>*/
+            
+            body {
+                color: /*{{color || 'gray'}}*/;
+            }
+            /*{{oMixin | css:true:true}}*/;
+        </style>
+                        
+        <script type="text/javascript" src="js/angular.min.js"></script>
+        <script type="text/javascript" src="js/angular.ngcss.js"></script>
+        <script type="text/javascript">
+            //# Setup the required globals
+            var ngCn = angular.module("ngCn", ["ngCss"]),
+                oMixin = {
+                    _selector: "pre",
+                    backgroundColor: "yellow"
+                }
+            ;
+                
+            //# Define the simple Angular .controller's
+            ngCn.controller("redController", ["$scope", function ($scope) {
+                $scope.color = "red";
+                $scope.oMixin = oMixin;
+            }]);
+            ngCn.controller("greenController", ["$scope", function ($scope) {
+                $scope.color = "green";
+                $scope.oMixin = oMixin;
+            }]);
+            ngCn.controller("blueController", ["$scope", function ($scope) {
+                $scope.color = "blue";
+                $scope.oMixin = oMixin;
+            }]);
+
+            //# Define the page's angular .controller
+            ngCn.controller("demoController", ["$scope", "ngCss", function ($scope, ngCss) {
+                $scope.color = "orange";
+                $scope.oMixin = oMixin;
+
+                //# 
+                $scope.jsScope = "isolated";
+                $scope.jsScopeFn = function (/*$element, oMetaData*/) {
+                    return "global";
+                };
+                $scope.ngScope = "#blue";
+                $scope.ngScopeFn = function (/*$element, oMetaData*/) {
+                    return "#green";
+                };
+
+                //# Import ngCss into our $scope (for use in the button's ng-click)
+                $scope.ngCss = ngCss;
+            }]);
+        </script>
+    </head>
+    <body>
+        <div id="red" ng-controller="redController"></div>
+        <div id="green" ng-controller="greenController"></div>
+        <div id="blue" ng-controller="blueController"></div>
+
+        User-generated example for ngCss using the following options:
+        <pre>{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }</pre>
+                        
+        Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
+        <br/><input ng-model="color"/>
+        <button ng-click="ngCss.updateCss()">Update Body Color</button>
+        
+    </body>
+</html>
