@@ -2,7 +2,7 @@
     <head>
         <title>ngCss :: Angular Binding in CSS (Don't Call It A CSS Preprocessor)</title>
         
-        <style type="text/css" id="ngCss" ng-css="{ script: 'global', live: true }">
+        <style type="text/css" id="ngCss" ng-css="{ script: 'global', scope: 'isolated', live: true }">
             /*
             <script>
                 //#
@@ -392,7 +392,7 @@
             var myAngularApp = angular.module("myAngularApp", ['ngCss']);
 
             //# Define Angular page .controller
-            myAngularApp.controller('PageController', ["$scope", "ngCss", function ($scope, ngCss) {
+            myAngularApp.controller('PageController', ["$scope", "$timeout", "ngCss", function ($scope, $timeout, ngCss) {
                 var oCSS = {};
 
                 //# Safely converts "rgb(x,x,x)" into "#xxxxxx"
@@ -410,18 +410,20 @@
 
                 //# 
                 $scope.init = function() {
-                    //# Collect a reference to the $cssScope via ngCss's .scope.get
-                    $scope.$cssScope = ngCss.scope.get("#ngCss");
+                    $timeout(function(){
+                        //# Collect a reference to the $cssScope via ngCss's .scope.get
+                        $scope.$cssScope = ngCss.scope.get("#ngCss");
 
-                    //# 
-                    if ($scope.$cssScope && $scope.$cssScope.oCSS) {
-                        oCSS = $scope.$cssScope.oCSS;
-                        oCSS.data = {
-                            fonts: $scope.$cssScope.oFonts,
-                            colors: $scope.$cssScope.oColors,
-                            sets: $scope.$cssScope.oColorSets
-                        };
-                    }
+                        //# 
+                        if ($scope.$cssScope && $scope.$cssScope.oCSS) {
+                            oCSS = $scope.$cssScope.oCSS;
+                            oCSS.data = {
+                                fonts: $scope.$cssScope.oFonts,
+                                colors: $scope.$cssScope.oColors,
+                                sets: $scope.$cssScope.oColorSets
+                            };
+                        }
+                    });
                 };
 
 
@@ -498,40 +500,29 @@
                 //# Define Angular page .controller
             myAngularApp.controller('ExamplesController', ["$scope", "$interpolate", "ngCss", function ($scope, $interpolate, ngCss) {
                 var $iFrame = angular.element(document.getElementById("exampleFrame")),
-                    $codeTemplate = document.getElementById("exampleCodeTemplate"),
+                    $codeTemplate = document.getElementById("simpleExample.html"),
                     $code = document.getElementById("exampleCode")
                 ;
 
                 //#
-                function removeCode(sCode, sType) {
-                    return sCode.replace(
-                        new RegExp('<code type="' + sType + '">([\\s\\S]*?)<\/code>', "gi")
-                    , "");
-                }
-
-
-                //#
                 $scope.ex = {
-                    scopeFunction: 'scopeFn',
                     tag: "style",
                     live: false,
                     async: true,
-                    scope: 'undefined',
-                    script: false
-                };
-
-
-                //#
-                $scope.importMainScope = function(_element, oCacheEntry) {
-                    console.log("importMainScope called!");
-
-                    return "#ngCss";
+                    scope: "''",
+                    scopeFn: 'ngScopeFn',
+                    scopeProp: 'ngScope',
+                    script: false,
+                    scriptFn: 'jsScopeFn',
+                    scriptProp: 'jsScope',
+                    callback: 'cssUpdated'
                 };
 
 
                 //#
                 $scope.buildExample = function () {
-                    var $win, sCode,
+                    var $win, a_sCodeMatch,
+                        sCode = $codeTemplate.innerHTML,
                         $newiFrame = document.createElement("iframe")
                     ;
 
@@ -541,17 +532,21 @@
                     $iFrame = angular.element($newiFrame);
                     $win = $newiFrame.contentWindow;
 
-                    //#
-                    sCode = removeCode($codeTemplate.innerHTML, ($scope.ex.scope === $scope.ex.scopeFunction ? "noScope" : "scope"));
-                    sCode = removeCode(sCode, ($scope.ex.tag === "style" ? "link" : "style"));
-                    sCode = removeCode(sCode, ($scope.ex.live ? "noLive" : "live"));
-                    sCode = sCode.replace(/<(\/)?code.*?>/gi, "").replace(/<!--\n/, "").replace(/-->\n/, "").replace(/\n\n\n/g, "\n");
-                    sCode = $scope.$eval($interpolate(sCode));
+                    //# Pull the sCode and preprocess it
+                    a_sCodeMatch = sCode.match(/\n(\s*?)<!--/);
+                    sCode = sCode
+                        .replace(new RegExp("\n" + a_sCodeMatch[1], "g"), "\n") //# Remove the leading whitespace from each line
+                        .replace(/<!--\n/g, "").replace(/-->\n/g, "")             //# Remove the HTML comments
+                        .replace(/{{/g, "[[").replace(/}}/g, "]]")                //# Replace the post-Angular {{vars}} with [[vars]]
+                        .replace(/{_{/g, "{{").replace(/}_}/g, "}}")              //# Replace the pre-Angular {_{vars}_} with {{vars}}
+                    ;
 
-                    //#
-                    sCode = sCode.replace(/\/\*{_{/g, "{{").replace(/}_}\*\//g, "}}")
-                        .replace(/{_{/g, "{{").replace(/}_}/g, "}}")
-                        .replace(/<\/ script>/gi, "</" + "script>")
+                    //# $interpolate the preprocessed sCode then finalise the processing
+                    sCode = $scope.$eval($interpolate(sCode));
+                    sCode = sCode
+                        .replace(/\/\*\[\[/g, "{{").replace(/\]\]\*\//g, "}}")      //# Replace the post-Angular /*[[vars]]*/ with {{vars}}
+                        .replace(/\[\[/g, "{{").replace(/\]\]/g, "}}")              //# Replace the post-Angular [[vars]] with {{vars}}
+                        .replace(/<\/ script>/gi, "</" + "script>")             //# Replace the </ script> tags
                     ;
 
                     //#
@@ -608,8 +603,8 @@
             <a name="profiles"></a>
             <ul id="demo" ng-init="init()">
                 <li style="background-color: /*{{oColors.blue}}*/;" ng-css="#ngCss" ng-click="updateCSS($event)"></li>
-                <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ script: '#ngCss', live: true }" class="active" ng-click="updateCSS($event)"></li>
-                <li style="background-color: /*{{oColors.green}}*/;" ng-css="#ngCss" id="neeker" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ script: '#ngCss', scope: '#ngCss', live: true }" class="active" ng-click="updateCSS($event)"></li>
+                <li style="background-color: /*{{oColors.green}}*/;" ng-css="#ngCss" ng-click="updateCSS($event)"></li>
             </ul>
 
             <!-- span class="tagline">CSS + JavaScript + Angular = Angular-powered CSS</span -->
@@ -750,6 +745,15 @@
                                 a <a href="#****">function**</a> present in the <a href='http://toddmotto.com/everything-you-wanted-to-know-about-javascript-scope/'>global Javascript scope</a> (e.g. <pre>window.myFunction</pre>) that returns a <pre>variant</pre> representing any of the listed values.
                         </li>-->
                     </ul>
+                </div>
+
+
+                <h3>callback</h3>
+                <div>
+                    <em>FUNCTION</em>
+                    <em>undefined</em>
+                    Defines the <a href="#****">function**</a> that will be called each time the CSS is updated.
+                    You can disable the callback by returning <pre>false</pre> from the function.
                 </div>
             </div>
             
@@ -952,7 +956,13 @@
 
 
         <div class="examples" ng-controller="ExamplesController">
-            <style ng-css="{ live: true, scope: 'importMainScope' }">
+            <!--<style id="iNoSuck" ng-css="{ script: 'global', live: true }">
+                /*<script>
+                    console.log("neek!!");
+                </script>*/
+            </style>-->
+            <!--<style id="iSuck" ng-css="{ script: 'isolated', live: true }"></style>-->
+            <style ng-css="{ script: 'local', live: true }">
                 TABLE {
                     margin: 1% 0 0 0;
                     width: 100%;
@@ -1055,14 +1065,14 @@
                         <select id="script" ng-model="ex.script">
                             <option value="false">False (Default)</option>
                             <option value="'isolated'">Isolated</option>
-                            <option value="'sandbox'">Sandbox</option>
+                            <!-- option value="'sandbox'">Sandbox</option -->
                             <option value="'global'">Global</option>
                             <option value="'local'">Local</option>
                             <option value="'useStrict'">Use Strict</option>
-                            <option value="'#myCss'">#ID</option>
-                            <option value="{ object: true }">[object]</option>
-                            <option value="{{ex.scopeFunction}}">[function]</option>
-                            <option value="'propertyName'">[string] =&gt; $scope[string]</option>
+                            <option value="'#sharedJavascriptScope'">#ID</option>
+                            <option value="{ context: true }">[object]</option>
+                            <option value="{{ex.scriptFn}}">[function]</option>
+                            <option value="{{ex.scriptProp}}">[$scope.property]</option>
                         </select>
                     </td>
                 </tr>
@@ -1070,10 +1080,11 @@
                     <th><label for="scope">Scope (Angular Scoping)</label></th>
                     <td>
                         <select id="scope" ng-model="ex.scope">
-                            <option value="'#myCss'" style="background-color: yellow;">#ID</option>
+                            <option value="''" style="background-color: yellow;">Parent Scope (Default)</option>
                             <option value="'isolated'">Isolate Scope</option>
-                            <option value="'propertyName'">[string] =&gt; $scope[string]</option>
-                            <option value="''" style="background-color: yellow;">Parent Scope</option>
+                            <option value="'#red'" style="background-color: yellow;">#ID</option>
+                            <option value="{{ex.scopeFn}}">[function]</option>
+                            <option value="{{ex.scopeProp}}">[$scope.property]</option>
                         </select>
                     </td>
                 </tr>
@@ -1095,227 +1106,6 @@
                     </td>
                 </tr>
             </table>
-
-
-            <script type="text/ngCss-template" id="link.html">
-                <css>
-                    <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }">
-                </css>
-            </script>
-
-            <script type="text/ngCss-template" id="script.html">
-                <css>
-                    <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }">
-                        /*<script>
-                            console.log("Javascript code running in CSS with access to: \'" + (window.sScopeAccess || "sandbox") + "\'");
-                        </script>*/
-            
-                        body {
-                            color: /*{_{color}_}*/;
-                        }
-                        /*{_{inputCss | css:true:true}_}*/;
-                    </style>
-                </css>
-            </script>
-
-            <script type="text/ngCss-template" id="noLive.html">
-                <controller>
-                    //# Import ngCss into our $scope (for use in the button's ng-click)
-                    $scope.ngCss = ngCss;
-                </controller>
-                <content>
-                    <button ng-click="ngCss.updateCss()">Update Body Color</button>
-                </content>
-            </script>
-            
-            <script type="text/ngCss-template" id="scope.html">
-                <controller>
-                    //# Setup the .scope function in the global scope so the options have access to it (as it only has access to its own isolate $scope)
-                    $scope.scopeFn = function(fnCallback, $isolateScope, $element, $link) {
-                        //# Setup our $scope
-                        $scope.color = "red";
-                        $scope.inputCss = {
-                            _selector: "input",
-                            backgroundColor: "pink"
-                        };
-                        $scope.other$id = $isolateScope.$id;
-    
-                        //# Replace the $isolateScope with our own $scope
-                        fnCallback($scope);
-                    };
-                </controller>
-                <content>
-                    <br/><input ng-model="color"/>
-                </content>
-                <metrics>
-                    <p>
-                        Current $scope.$id: {_{$id}_}
-                        <br/>Original $scope.$id: {_{other$id}_}
-                    </p>
-                </metrics>
-            </script>
-            
-            <script type="text/ngCss-template" id="noScope.html">
-                <controller>
-                    $timeout(function() {
-                        //# Collect the $scope used by #myCss
-                        var $cssScope = ngCss.scope.get("#myCss");
-    
-                        console.log("$cssScope: ", $cssScope);
-    
-                        //# Setup the $cssScope
-                        $cssScope.color = "red";
-                        $cssScope.inputCss = {
-                            _selector: "input",
-                            backgroundColor: "yellow"
-                        };
-    
-                        //# Copy the $cssScope into our own $scope
-                        $scope.$cssScope = $cssScope;
-    
-                        //# If we are not .live we need to call .updateCss
-                        if (!{{ex.live}}) {
-                            ngCss.updateCss();
-                        }
-                    });                
-                </controller>
-                <content>
-                    <br/><input ng-model="$cssScope.color"/>
-                </content>
-            </script>
-            
-            <script type="text/ngCss-template" id="template.html">
-                <html ng-app="myAngularApp" ng-controller="UserExampleController">
-                    <head>
-                        <title>ngCss User-Generated Example</title>
-                        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-                        <css/>
-                        
-                        <script type="text/javascript" src="js/angular.min.js"></ script>
-                        <script type="text/javascript" src="js/angular.ngcss.js"></ script>
-                        <script type="text/javascript">
-                            //# Setup the required globals
-                            var myAngularApp = angular.module("myAngularApp", ["ngCss"]),
-                                sScopeAccess = "local"
-                            ;
-                
-                            //# Define Angular page .controller
-                            myAngularApp.controller("UserExampleController", ["$scope", "ngCss", "$timeout", function ($scope, ngCss, $timeout) {
-                                <controller/>
-                            }]);
-                        </ script>
-                    </head>
-                    <body id="bodyTag">
-                        User-generated example for ngCss using the following options:
-                        <pre>{ script: {{ex.script}}, scope: {{ex.scope}}, live: {{ex.live}}, async: {{ex.async}} }</pre>
-                        
-                        Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
-                        <content/>
-                        <metrics/>
-                    </body>
-                </html>
-            </script>
-
-            <script type="text/ngCss-template" id="exampleCodeTemplate">
-<!--
-<html ng-app="myAngularApp" ng-controller="UserExampleController">
-    <head>
-        <title>ngCss User-Generated Example</title>
-        <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-
-<code type="link">
-        <link rel="stylesheet" type="text/css" href="example.css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }">
-</code>
-<code type="style">
-        <style type="text/css" id="myCss" ng-css="{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }">
-            /*<script>
-                console.log("Javascript code running in CSS with access to: \'" + (window.sScopeAccess || "sandbox") + "\'");
-            </script>*/
-
-            body {
-                color: /*{_{color}_}*/;
-            }
-            /*{_{inputCss | css:true:true}_}*/;
-        </style>
-</code>
-        <script type="text/javascript" src="js/angular.min.js"></script>
-        <script type="text/javascript" src="js/angular.ngcss.js"></script>
-        <script type="text/javascript">
-            //# Setup the required globals
-            var myAngularApp = angular.module("myAngularApp", ["ngCss"]),
-                sScopeAccess = "local"
-            ;
-
-            //# Define Angular page .controller
-            myAngularApp.controller("UserExampleController", ["$scope", "ngCss", "$timeout", function ($scope, ngCss, $timeout) {
-<code type="noLive">                //# Import ngCss into our $scope (for use in the button's ng-click)
-                $scope.ngCss = ngCss;
-</code>
-<code type="scope">
-                //# Setup the .scope function in the global scope so the options have access to it (as it only has access to its own isolate $scope)
-                $scope.scopeFn = function(fnCallback, $isolateScope, $element, $link) {
-                    //# Setup our $scope
-                    $scope.color = "red";
-                    $scope.inputCss = {
-                        _selector: "input",
-                        backgroundColor: "pink"
-                    };
-                    $scope.other$id = $isolateScope.$id;
-
-                    //# Replace the $isolateScope with our own $scope
-                    fnCallback($scope);
-                };
-</code>
-<code type="noScope">
-                $timeout(function() {
-                    //# Collect the $scope used by #myCss
-                    var $cssScope = ngCss.scope.get("#myCss");
-
-                    console.log("$cssScope: ", $cssScope);
-
-                    //# Setup the $cssScope
-                    $cssScope.color = "red";
-                    $cssScope.inputCss = {
-                        _selector: "input",
-                        backgroundColor: "yellow"
-                    };
-
-                    //# Copy the $cssScope into our own $scope
-                    $scope.$cssScope = $cssScope;
-
-                    //# If we are not .live we need to call .updateCss
-                    if (!{{ex.live}}) {
-                        ngCss.updateCss();
-                    }
-                });
-</code>
-            }]);
-        </script>
-    </head>
-    <body id="bodyTag">
-        User-generated example for ngCss using the following options:
-        <pre>{ script: {{ex.script}}, live: {{ex.live}}, async: {{ex.async}}, scope: {{ex.scope}} }</pre>
-        
-        Use the input <span ng-hide="{{ex.live}}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
-<code type="noScope">
-        <br/><input ng-model="$cssScope.color"/>
-</code>
-<code type="scope">
-        <br/><input ng-model="color"/>
-</code>
-<code type="noLive">
-        <button ng-click="ngCss.updateCss()">Update Body Color</button>
-</code>
-<code type="scope">
-        <p>
-            Current $scope.$id: {_{$id}_}
-            <br/>Original $scope.$id: {_{other$id}_}
-        </p>
-</code>
-    </body>
-</html>
--->
-            </script>
 
             <h3>Complex Example</h3>
             This page is setup as a complex example; be sure to view source and explore the code for more examples and ideas.
@@ -1508,7 +1298,6 @@
                 $nsr.setAttribute("style", "height:" + h);
                 $nsr.style.height = h;
 
-
                 //# Spin through the profiles auto-majicially to demo the functionality
                 var iTimeoutID,
                     iCount = 0,
@@ -1539,6 +1328,140 @@
                 //# Kickoff the demo
                 fnAutoClick();
             })();
+        </script>
+        
+        <script type="text/ngCss-template" id="simpleExample.html">
+            <!--
+            <html ng-app="myAngularApp" ng-controller="pageController" ng-cloak>
+                <head>
+                    <title>ngCss User Generated Example</title>
+                    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+                    
+                    <style>
+                        div {
+                            display: inline;
+                            padding: 5px;
+                        }
+                        pre {
+                            display: inline;
+                        }
+            
+                        #pageId {
+                            background-color: #eee;
+                        }
+                        #red {
+                            color: black;
+                            background-color: red;
+                        }
+                        #green {
+                            color: black;
+                            background-color: green;
+                        }
+                        #blue {
+                            color: white;
+                            background-color: blue;
+                        }
+                    </style>
+            
+                    <style type="text/css" id="sharedJavascriptScope" ng-css="{ script: 'isolated' }">
+                        /*<script>
+                            var oShare = { shared: true };
+                            $scope.color = "lime";
+                        </ script>*/
+                    </style>
+            
+                    <style type="text/css" id="myAngularCss" ng-css="{ script: {_{ex.script}_}, scope: {_{ex.scope}_}, live: {_{ex.live}_}, async: {_{ex.async}_}, callback: {_{ex.callback}_} }">
+                        /*ngcss({ script: true })*/
+                        /*<script>
+                            $scope.metrics = [];
+                            $scope.metrics.push("Javascript code running in CSS *" + (window.myAngularApp ? "with" : "without") + "* access to the page's `window` object");
+                            if (window.oShare) { $scope.metrics.push("I am sharing a Javascript scope with #sharedJavascriptScope."); }
+                            if (this && this.context) { $scope.metrics.push("I have a Javascript eval context (e.g. `this`)."); }
+            
+                            $scope.color = $scope.color || "purple";
+                        </ script>*/
+                        
+                        body {
+                            color: /*{{color || 'gray'}}*/;
+                        }
+                        /*{{myMixin | css:true:true}}*/
+                    </style>
+                                    
+                    <script type="text/javascript" src="js/angular.min.js"></ script>
+                    <script type="text/javascript" src="js/angular.ngcss.js"></ script>
+                    <script type="text/javascript">
+                        //# Setup the required globals
+                        var myAngularApp = angular.module("myAngularApp", ["ngCss"]),
+                            oMixin = {
+                                _selector: "button",
+                                backgroundColor: "yellow"
+                            }
+                        ;
+                            
+                        //# Define the simple Angular .controller's
+                        myAngularApp.controller("redController", ["$scope", function ($scope) {
+                            $scope.color = "red";
+                            $scope.myMixin = oMixin;
+                        }]);
+                        myAngularApp.controller("greenController", ["$scope", function ($scope) {
+                            $scope.color = "green";
+                            $scope.myMixin = oMixin;
+                        }]);
+                        myAngularApp.controller("blueController", ["$scope", function ($scope) {
+                            $scope.color = "blue";
+                            $scope.myMixin = oMixin;
+                        }]);
+            
+                        //# Define the page's angular .controller
+                        myAngularApp.controller("pageController", ["$scope", "ngCss", function ($scope, ngCss) {
+                            $scope.color = "orange";
+                            $scope.myMixin = oMixin;
+            
+                            //# 
+                            $scope.jsScope = "isolated";
+                            $scope.jsScopeFn = function (/*$element, oMetaData*/) {
+                                return "global";
+                            };
+                            $scope.ngScope = "#blue";
+                            $scope.ngScopeFn = function (/*$element, oMetaData*/) {
+                                return "#green";
+                            };
+            
+                            //# Import ngCss into our $scope (for use in the button's ng-click)
+                            $scope.ngCss = ngCss;
+            
+                            //# On the first parse of the CSS, set our reference to $cssScope and return false to unhook our .callback
+                            $scope.cssUpdated = function () {
+                                $scope.$cssScope = ngCss.scope.get('#myAngularCss');
+                                return false;
+                            };
+                        }]);
+                    </ script>
+                </head>
+                <body>
+                    <h1>ngCss User Generated Example</h1>
+                    Use the input <span ng-hide="{_{ex.live}_}">and button</span> below to update the CSS value for the text color (e.g. "green", "blue", "#cccccc", etc.).
+                    <br/>
+                    <input ng-model="$cssScope.color"/>
+                    <button ng-hide="{_{ex.live}_}" ng-click="ngCss.updateCss()">Update Body Color</button>
+            
+            
+                    <h2>Metrics</h2>
+                    Options: <pre>{ script: {_{ex.script}_}, scope: {_{ex.scope}_}, live: {_{ex.live}_}, async: {_{ex.async}_}, callback: {_{ex.callback}_} }</pre>
+                    <ul id="metrics">
+                        <li>#myAngularCss's $scope.$id: {{$cssScope.$id}}</li>
+                        <li ng-repeat="entry in $cssScope.metrics">{{entry}}</li>            
+                    </ul>
+            
+            
+                    <h2>Reference</h2>
+                    <div id="pageId">pageController's $scope.$id: {{$id}}</div>
+                    <div id="red" ng-controller="redController">redController's $scope.$id: {{$id}}</div>
+                    <div id="green" ng-controller="greenController">greenController's $scope.$id: {{$id}}</div>
+                    <div id="blue" ng-controller="blueController">blueController's $scope.$id: {{$id}}</div>        
+                </body>
+            </html>
+            -->
         </script>
     </body>
 </html>
