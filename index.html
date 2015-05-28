@@ -2,9 +2,11 @@
     <head>
         <title>ngCss :: Angular Binding in CSS (Don't Call It A CSS Preprocessor)</title>
         
-        <style type="text/css" id="ngCss" ng-css="{ script: 'global', scope: 'isolated', live: true }">
-            /*
-            <script>
+        <style type="text/css" id="ngCss" ng-css>
+            /*ng-css({ script: 'isolated', scope: '#page', live: true })*/      /* <-- Must be the first non-whitespace string in the STYLE tag! */
+            /*<script>
+                var neek = true;
+
                 //#
                 $scope.oFonts = {
                     Arial: 'arial',
@@ -65,17 +67,16 @@
                     gettingStarted: $scope.oColorSets.orange,
                     gotchas: $scope.oColorSets.green
                 };
-            </script>
-            */
+            </script>*/
 
             /* Fonts */
-            @font-face {
-                font-family: 'Comic Sans';
-                src: url('./css/fonts/Comic Sans MS Regular.eot');
-                src: local('☺'), url('./css/fonts/Comic Sans MS Regular.woff') format('woff'), url('./css/fonts/Comic Sans MS Regular.ttf') format('truetype'), url('./css/fonts/Comic Sans MS Regular.svg') format('svg');
-                font-weight: normal;
-                font-style: normal;
-            }
+             @font-face {
+                 font-family: 'Comic Sans';
+                 src: url('./css/fonts/Comic Sans MS Regular.eot');
+                 src: local('☺'), url('./css/fonts/Comic Sans MS Regular.woff') format('woff'), url('./css/fonts/Comic Sans MS Regular.ttf') format('truetype'), url('./css/fonts/Comic Sans MS Regular.svg') format('svg');
+                 font-weight: normal;
+                 font-style: normal;
+             }
             @font-face {
                 font-family: 'Helvetica';
                 src: url('./css/fonts/Helvetica.eot');
@@ -117,29 +118,29 @@
                 margin: 1% 0 0 0;
                 text-align: center;
             }
-                H2 {
-                    font-family: /*{{oCSS.fonts.pretty}}*/;
-                    font-size: 350%;
-                    margin: 1% 0 2% 0;
-                }
-                H3 {
-                    font-family: /*{{oCSS.fonts.pretty}}*/;
-                    font-size: 200%;
-                    margin: 2% 0 2% 0;
-                }
-                H4 {
-                    font-family: /*{{oCSS.fonts.pretty}}*/;
-                    font-size: 150%;
-                    margin: 2% 0 2% 0;
-                }
+            H2 {
+                font-family: /*{{oCSS.fonts.pretty}}*/;
+                font-size: 350%;
+                margin: 1% 0 2% 0;
+            }
+            H3 {
+                font-family: /*{{oCSS.fonts.pretty}}*/;
+                font-size: 200%;
+                margin: 2% 0 2% 0;
+            }
+            H4 {
+                font-family: /*{{oCSS.fonts.pretty}}*/;
+                font-size: 150%;
+                margin: 2% 0 2% 0;
+            }
 
             A {
                 color: maroon;
                 text-decoration: none;
             }
-                A:hover {
-                    border-bottom: 1px solid /*{{oColors.red}}*/;
-                }
+            A:hover {
+                border-bottom: 1px solid /*{{oColors.red}}*/;
+            }
 
             SPAN.ugly {
                 font-family: /*{{oCSS.fonts.ugly}}*/;
@@ -154,18 +155,18 @@
                 list-style: none;
                 margin-top: -2em;
             }
-                UL#demo LI {
-                    height: 3em;
-                    width: 3em;
-                    margin: 5px;
-                    list-style: none;
-                    display: inline-block;
-                    border: 4px solid white;
-                    cursor: pointer;
-                }
-                    UL#demo LI.active {
-                        border-color: black;
-                    }
+            UL#demo LI {
+                height: 3em;
+                width: 3em;
+                margin: 5px;
+                list-style: none;
+                display: inline-block;
+                border: 4px solid white;
+                cursor: pointer;
+            }
+            UL#demo LI.active {
+                border-color: black;
+            }
 
             #nsr {
                 height: 500px;
@@ -207,49 +208,49 @@
                 display: inline;
                 padding: 1px;
             }
-                PRE.i {
-                    font-style: oblique;
-                    text-decoration: underline;
-                    text-decoration-style: wavy;
-                    -moz-text-decoration-style: wavy;
-                    text-decoration-color: /*{{oCSS.highlight}}*/;
-                    -moz-text-decoration-color: /*{{oCSS.highlight}}*/;
-                }
-                    PRE.i:before {
-                        content: "[";
-                    }
-                    PRE.i:after {
-                        content: "]";
-                    }
-                PRE > STRONG {
-                    background-color: /*{{oCSS.highlight}}*/;
-                }
+            PRE.i {
+                font-style: oblique;
+                text-decoration: underline;
+                text-decoration-style: wavy;
+                -moz-text-decoration-style: wavy;
+                text-decoration-color: /*{{oCSS.highlight}}*/;
+                -moz-text-decoration-color: /*{{oCSS.highlight}}*/;
+            }
+            PRE.i:before {
+                content: "[";
+            }
+            PRE.i:after {
+                content: "]";
+            }
+            PRE > STRONG {
+                background-color: /*{{oCSS.highlight}}*/;
+            }
 
             .splash {
                 padding: 0 0 2% 0;
                 text-align: center;
             }
-                .splash H1 {
-                    margin-top: /*{{oCSS.splash.h1_marginTop}}*/;
-                }
-                .splash H1 > SPAN {
-                    font-family: /*{{oCSS.fonts.ugly}}*/;
-                    font-size: 80%;
-                    display: inline-block;
-                    margin: /*{{oCSS.splash.h1_span_marginTop}}*/ -0.08em 0 -0.17em;
-                    -webkit-transform: rotate(-15deg);
-                    -o-transform: rotate(-15deg);
-                    transform: rotate(-15deg);
-                }
-                    .splash H1 > SPAN > SPAN {
-                        font-size: 50%;
-                        color: /*{{oCSS.mainColor}}*/;
-                    }
-                .splash .tagline {
-                    font-size: 150%;
-                    margin: -0.4em 0 0 0;
-                    text-align: center;
-                }
+            .splash H1 {
+                margin-top: /*{{oCSS.splash.h1_marginTop}}*/;
+            }
+            .splash H1 > SPAN {
+                font-family: /*{{oCSS.fonts.ugly}}*/;
+                font-size: 80%;
+                display: inline-block;
+                margin: /*{{oCSS.splash.h1_span_marginTop}}*/ -0.08em 0 -0.17em;
+                -webkit-transform: rotate(-15deg);
+                -o-transform: rotate(-15deg);
+                transform: rotate(-15deg);
+            }
+            .splash H1 > SPAN > SPAN {
+                font-size: 50%;
+                color: /*{{oCSS.mainColor}}*/;
+            }
+            .splash .tagline {
+                font-size: 150%;
+                margin: -0.4em 0 0 0;
+                text-align: center;
+            }
 
             .overview,
             .options,
@@ -268,97 +269,97 @@
                 background-color: /*{{oCSS.mainColor}}*/;
                 color: /*{{oCSS.about.color}}*/;
             }
-                .about > P:first-of-type {
-                    margin-top: 0;
-                }
-                .about A {
-                    color: /*{{oCSS.about.a}}*/;
-                }
-                    .about A:hover {
-                        border-bottom: 1px solid /*{{oCSS.about.a}}*/;
-                    }
+            .about > P:first-of-type {
+                margin-top: 0;
+            }
+            .about A {
+                color: /*{{oCSS.about.a}}*/;
+            }
+            .about A:hover {
+                border-bottom: 1px solid /*{{oCSS.about.a}}*/;
+            }
 
 
             .gettingstarted {
                 background-color: /*{{oCSS.gettingStarted.backgroundColor}}*/;
                 color: /*{{oCSS.gettingStarted.color}}*/;
             }
-                .gettingstarted BLOCKQUOTE {
-                    color: black;
-                }
-                .gettingstarted A {
-                    color: /*{{oCSS.gettingStarted.a}}*/;
-                }
-                    .gettingstarted A:hover {
-                        border-bottom: 1px solid /*{{oCSS.gettingStarted.a}}*/;
-                    }
+            .gettingstarted BLOCKQUOTE {
+                color: black;
+            }
+            .gettingstarted A {
+                color: /*{{oCSS.gettingStarted.a}}*/;
+            }
+            .gettingstarted A:hover {
+                border-bottom: 1px solid /*{{oCSS.gettingStarted.a}}*/;
+            }
 
             .gotchas {
                 background-color: /*{{oCSS.gotchas.backgroundColor}}*/;
                 color: /*{{oCSS.gotchas.color}}*/;
             }
-                .gotchas A {
-                    color: /*{{oCSS.gotchas.a}}*/;
-                }
-                    .gotchas A:hover {
-                        border-bottom: 1px solid /*{{oCSS.gotchas.a}}*/;
-                    }
+            .gotchas A {
+                color: /*{{oCSS.gotchas.a}}*/;
+            }
+            .gotchas A:hover {
+                border-bottom: 1px solid /*{{oCSS.gotchas.a}}*/;
+            }
 
             .overview {
                 background-color: /*{{oCSS.overview.backgroundColor}}*/;
                 color: /*{{oCSS.overview.color}}*/;
             }
-                .overview UL LI {
-                    width: 48%;
-                }
-                    .overview UL LI:nth-of-type(odd) {
-                        float: left;
-                        clear: left;
-                    }
-                    .overview UL LI:nth-of-type(even) {
-                        float: right;
-                        clear: right;
-                    }
-                    .overview UL LI STRONG {
-                        text-transform: uppercase;
-                    }
-                .overview A {
-                    color: /*{{oCSS.overview.a}}*/;
-                }
-                    .overview A:hover {
-                        border-bottom: 1px solid /*{{oCSS.overview.a}}*/;
-                    }
+            .overview UL LI {
+                width: 48%;
+            }
+            .overview UL LI:nth-of-type(odd) {
+                float: left;
+                clear: left;
+            }
+            .overview UL LI:nth-of-type(even) {
+                float: right;
+                clear: right;
+            }
+            .overview UL LI STRONG {
+                text-transform: uppercase;
+            }
+            .overview A {
+                color: /*{{oCSS.overview.a}}*/;
+            }
+            .overview A:hover {
+                border-bottom: 1px solid /*{{oCSS.overview.a}}*/;
+            }
 
             .options .column {
                 width: 48%;
             }
-                .options > DIV.c1of2 {
-                    float: left;
-                }
-                .options > DIV.c2of2 {
-                    float: right;
-                }
-                .options .column > H3 {
-                    margin: 4% 0 1.5% 0;
-                }
-                .options .column EM {
-                    display: block;
-                    margin: 0 0 0 3%;
-                }
-                    .options .column EM:last-of-type:before {
-                        content: "Default Value: ";
-                    }
-                    .options .column EM:last-of-type {
-                        margin-bottom: 2%;
-                    }
-                .options .note {
-                    font-style: italic;
-                    font-size: 90%;
-                    margin-top: 2%;
-                }
-                    .options .note:before {
-                        content: "NOTE: ";
-                    }
+            .options > DIV.c1of2 {
+                float: left;
+            }
+            .options > DIV.c2of2 {
+                float: right;
+            }
+            .options .column > H3 {
+                margin: 4% 0 1.5% 0;
+            }
+            .options .column EM {
+                display: block;
+                margin: 0 0 0 3%;
+            }
+            .options .column EM:last-of-type:before {
+                content: "Default Value: ";
+            }
+            .options .column EM:last-of-type {
+                margin-bottom: 2%;
+            }
+            .options .note {
+                font-style: italic;
+                font-size: 90%;
+                margin-top: 2%;
+            }
+            .options .note:before {
+                content: "NOTE: ";
+            }
 
             BLOCKQUOTE {
                 background: none repeat scroll 0 0 /*{{oColors.gray}}*/;
@@ -383,8 +384,7 @@
                 content: "{{";
             }
         </style>
-
-
+        
         <script type="text/javascript" src="js/angular.js"></script>
         <script type="text/javascript" src="js/angular.ngcss.js"></script>
         <script type="text/javascript">
@@ -392,9 +392,12 @@
             var myAngularApp = angular.module("myAngularApp", ['ngCss']);
 
             //# Define Angular page .controller
-            myAngularApp.controller('PageController', ["$scope", "$timeout", "ngCss", function ($scope, $timeout, ngCss) {
-                var oCSS = {};
-
+            myAngularApp.controller('PageController', ["$scope", "$timeout", "$interpolate", function ($scope, $timeout, $interpolate) {
+                var $iFrame = angular.element(document.getElementById("exampleFrame")),
+                    $codeTemplate = document.getElementById("simpleExample.html"),
+                    $code = document.getElementById("exampleCode")
+                ;
+                
                 //# Safely converts "rgb(x,x,x)" into "#xxxxxx"
                 function rgb2hex(rgb) {
                     function hex(x) {
@@ -406,26 +409,7 @@
                     rgb = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
                     return (rgb ? "#" + (hex(rgb[1]) + hex(rgb[2]) + hex(rgb[3])).toUpperCase() : "");
                 }
-
-
-                //# 
-                $scope.init = function() {
-                    $timeout(function(){
-                        //# Collect a reference to the $cssScope via ngCss's .scope.get
-                        $scope.$cssScope = ngCss.scope.get("#ngCss");
-
-                        //# 
-                        if ($scope.$cssScope && $scope.$cssScope.oCSS) {
-                            oCSS = $scope.$cssScope.oCSS;
-                            oCSS.data = {
-                                fonts: $scope.$cssScope.oFonts,
-                                colors: $scope.$cssScope.oColors,
-                                sets: $scope.$cssScope.oColorSets
-                            };
-                        }
-                    });
-                };
-
+                
 
                 //# Updates the page's CSS to the user-selected profile
                 $scope.updateCSS = function ($event) {
@@ -441,68 +425,59 @@
 
                     //# Set the passed $li to .active then collect the .mainColor from the $li's .backgroundColor (converting from "rgb(x,x,x)" to "#xxxxxx" as we go)
                     $li.className = "active";
-                    oCSS.mainColor = rgb2hex($li.style.backgroundColor);
+                    $scope.oCSS.mainColor = rgb2hex($li.style.backgroundColor);
 
                     //# Reset the user-updatable fields from the Complex Example
-                    oCSS.fontFamily = oCSS.data.fonts.nonHeader;
-                    oCSS.color = 'black';
-                    oCSS.data.sets.green.backgroundColor = oCSS.data.colors.green;
+                    $scope.oCSS.fontFamily = $scope.oFonts.nonHeader;
+                    $scope.oCSS.color = 'black';
+                    $scope.oColorSets.green.backgroundColor = $scope.oColors.green;
 
                     //# Determine the user-selected profile and process accordingly
-                    switch (oCSS.mainColor) {
-                        case oCSS.data.colors.blue: {
-                            oCSS.highlight = oCSS.data.colors.lightGreen;
+                    switch ($scope.oCSS.mainColor) {
+                        case $scope.oColors.blue: {
+                            $scope.oCSS.highlight = $scope.oColors.lightGreen;
 
-                            oCSS.fonts.pretty = oCSS.data.fonts.Arial;
-                            oCSS.fonts.ugly = oCSS.data.fonts.ComicSans;
-                            oCSS.about.color = "white";
-                            oCSS.about.a = oCSS.data.colors.green;
-                            oCSS.splash.h1_span_marginTop = "-1.7em";
-                            oCSS.splash.h1_marginTop = "1%";
-                            oCSS.overview = oCSS.data.sets.orange;
-                            oCSS.gettingStarted = oCSS.data.sets.blue;
-                            oCSS.gotchas = oCSS.data.sets.green;
+                            $scope.oCSS.fonts.pretty = $scope.oFonts.Arial;
+                            $scope.oCSS.fonts.ugly = $scope.oFonts.ComicSans;
+                            $scope.oCSS.about.color = "white";
+                            $scope.oCSS.about.a = $scope.oColors.green;
+                            $scope.oCSS.splash.h1_span_marginTop = "-1.7em";
+                            $scope.oCSS.splash.h1_marginTop = "1%";
+                            $scope.oCSS.overview = $scope.oColorSets.orange;
+                            $scope.oCSS.gettingStarted = $scope.oColorSets.blue;
+                            $scope.oCSS.gotchas = $scope.oColorSets.green;
                             break;
                         }
-                        case oCSS.data.colors.orange: {
-                            oCSS.highlight = oCSS.data.colors.lightGreen;
+                        case $scope.oColors.orange: {
+                            $scope.oCSS.highlight = $scope.oColors.lightGreen;
 
-                            oCSS.fonts.pretty = oCSS.data.fonts.Helvetica;
-                            oCSS.fonts.ugly = oCSS.data.fonts.ComicSans;
-                            oCSS.about.color = "black";
-                            oCSS.about.a = oCSS.data.colors.red;
-                            oCSS.splash.h1_span_marginTop = "-1.7em";
-                            oCSS.splash.h1_marginTop = "0.9%";
-                            oCSS.overview = oCSS.data.sets.blue;
-                            oCSS.gettingStarted = oCSS.data.sets.orange;
-                            oCSS.gotchas = oCSS.data.sets.green;
+                            $scope.oCSS.fonts.pretty = $scope.oFonts.Helvetica;
+                            $scope.oCSS.fonts.ugly = $scope.oFonts.ComicSans;
+                            $scope.oCSS.about.color = "black";
+                            $scope.oCSS.about.a = $scope.oColors.red;
+                            $scope.oCSS.splash.h1_span_marginTop = "-1.7em";
+                            $scope.oCSS.splash.h1_marginTop = "0.9%";
+                            $scope.oCSS.overview = $scope.oColorSets.blue;
+                            $scope.oCSS.gettingStarted = $scope.oColorSets.orange;
+                            $scope.oCSS.gotchas = $scope.oColorSets.green;
                             break;
                         }
-                        case oCSS.data.colors.green: {
-                            oCSS.highlight = oCSS.data.colors.lightOrange;
+                        case $scope.oColors.green: {
+                            $scope.oCSS.highlight = $scope.oColors.lightOrange;
 
-                            oCSS.fonts.pretty = oCSS.data.fonts.ComicSans;
-                            oCSS.fonts.ugly = oCSS.data.fonts.Helvetica;
-                            oCSS.about.color = "black";
-                            oCSS.about.a = oCSS.data.colors.red;
-                            oCSS.splash.h1_span_marginTop = "-1.5em";
-                            oCSS.splash.h1_marginTop = "0";
-                            oCSS.overview = oCSS.data.sets.green;
-                            oCSS.gettingStarted = oCSS.data.sets.blue;
-                            oCSS.gotchas = oCSS.data.sets.orange;
+                            $scope.oCSS.fonts.pretty = $scope.oFonts.ComicSans;
+                            $scope.oCSS.fonts.ugly = $scope.oFonts.Helvetica;
+                            $scope.oCSS.about.color = "black";
+                            $scope.oCSS.about.a = $scope.oColors.red;
+                            $scope.oCSS.splash.h1_span_marginTop = "-1.5em";
+                            $scope.oCSS.splash.h1_marginTop = "0";
+                            $scope.oCSS.overview = $scope.oColorSets.green;
+                            $scope.oCSS.gettingStarted = $scope.oColorSets.blue;
+                            $scope.oCSS.gotchas = $scope.oColorSets.orange;
                             break;
                         }
                     }
                 };
-            }]); //# myAngularApp.controller('PageController'...
-
-
-                //# Define Angular page .controller
-            myAngularApp.controller('ExamplesController', ["$scope", "$interpolate", "ngCss", function ($scope, $interpolate, ngCss) {
-                var $iFrame = angular.element(document.getElementById("exampleFrame")),
-                    $codeTemplate = document.getElementById("simpleExample.html"),
-                    $code = document.getElementById("exampleCode")
-                ;
 
                 //#
                 $scope.ex = {
@@ -516,14 +491,18 @@
                     scriptFn: 'jsScopeFn',
                     scriptProp: 'jsScope',
                     callback: 'cssUpdated'
-                };
+                }; //# $scope.ex
 
 
                 //#
                 $scope.buildExample = function () {
                     var $win, a_sCodeMatch,
                         sCode = $codeTemplate.innerHTML,
-                        $newiFrame = document.createElement("iframe")
+                        $newiFrame = document.createElement("iframe"),
+                        sTagRegEx = ($scope.ex.tag !== "style" ?
+                            '<style id="myAngularCss"[^]*?<\/style>' :
+                            '<link id="myAngularCss".*?\/>'
+                        )
                     ;
 
                     //#
@@ -536,31 +515,32 @@
                     a_sCodeMatch = sCode.match(/\n(\s*?)<!--/);
                     sCode = sCode
                         .replace(new RegExp("\n" + a_sCodeMatch[1], "g"), "\n") //# Remove the leading whitespace from each line
-                        .replace(/<!--\n/g, "").replace(/-->\n/g, "")             //# Remove the HTML comments
-                        .replace(/{{/g, "[[").replace(/}}/g, "]]")                //# Replace the post-Angular {{vars}} with [[vars]]
-                        .replace(/{_{/g, "{{").replace(/}_}/g, "}}")              //# Replace the pre-Angular {_{vars}_} with {{vars}}
+                        .replace(/<!--\n/g, "").replace(/-->\n/g, "")           //# Remove the HTML comments
+                        .replace(/{{/g, "[[").replace(/}}/g, "]]")              //# Replace the post-Angular {{vars}} with [[vars]]
+                        .replace(/{_{/g, "{{").replace(/}_}/g, "}}")            //# Replace the pre-Angular {_{vars}_} with {{vars}}
                     ;
 
                     //# $interpolate the preprocessed sCode then finalise the processing
                     sCode = $scope.$eval($interpolate(sCode));
                     sCode = sCode
-                        .replace(/\/\*\[\[/g, "{{").replace(/\]\]\*\//g, "}}")      //# Replace the post-Angular /*[[vars]]*/ with {{vars}}
-                        .replace(/\[\[/g, "{{").replace(/\]\]/g, "}}")              //# Replace the post-Angular [[vars]] with {{vars}}
+                        .replace(/\/\*\[\[/g, "{{").replace(/\]\]\*\//g, "}}")  //# Replace the post-Angular /*[[vars]]*/ with {{vars}}
+                        .replace(/\[\[/g, "{{").replace(/\]\]/g, "}}")          //# Replace the post-Angular [[vars]] with {{vars}}
                         .replace(/<\/ script>/gi, "</" + "script>")             //# Replace the </ script> tags
+                        .replace(new RegExp(sTagRegEx, 'gi'), "")               //# Remove the unrequested HTML tag from the sCode
                     ;
 
-                    //#
+                    //# Update the $code TEXTAREA and $win IFRAME with the above processed sCode, then .close the $win so the throbber stops
                     $code.value = sCode;
                     $win.document.write(sCode);
                     $win.document.close();
 
                     //#
                     $scope.showTab({ target: document.getElementById("tabs").children[0].children[0] });
-                };
+                }; //# $scope.buildExample
 
 
                 //#
-                $scope.showTab = function($event) {
+                $scope.showTab = function ($event) {
                     var i,
                         $li = $event.target,
                         $ul = document.getElementById("tabs"),
@@ -579,12 +559,12 @@
 
                     $li.className = "active";
                     $content.className = "show";
-                };
-            }]); //# myAngularApp.controller('ExamplesController'...
+                }; //# $scope.showTab
+            }]); //# myAngularApp.controller('PageController'...
         </script>
     </head>    
-    <body>
-        <div class="splash" ng-controller="PageController" ng-init="init()">
+    <body id="page" ng-controller="PageController">
+        <div class="splash">
             <a class="download" href="https://github.com/campbeln/ngcss">Download From GitHub</a>
 
             <div style="position: absolute; left: 50%; top: -1.5%; width: 9%; z-index: -1;">
@@ -601,7 +581,7 @@
             <br/><img src="img/notsirrobin.png" id="nsr" />
 
             <a name="profiles"></a>
-            <ul id="demo" ng-init="init()">
+            <ul id="demo">
                 <li style="background-color: /*{{oColors.blue}}*/;" ng-css="#ngCss" ng-click="updateCSS($event)"></li>
                 <li style="background-color: /*{{oColors.orange}}*/;" ng-css="{ script: '#ngCss', scope: '#ngCss', live: true }" class="active" ng-click="updateCSS($event)"></li>
                 <li style="background-color: /*{{oColors.green}}*/;" ng-css="#ngCss" ng-click="updateCSS($event)"></li>
@@ -613,31 +593,29 @@
         
         <div class="overview">
             <h2>Overview</h2>
-            <p>
-                ngCss is <a href="http://www.lesscss.org/">LESS</a> <a href="http://www.sass-lang.com/">SASS</a>y and more <a href="http://learnboost.github.io/stylus/">Stylus</a>h than the competition ;)
-            </p>
+            ngCss gives you the ability to embed <pre>&lt;script&gt;</pre> tags within CSS - adding variables, functions and logic to the power of CSS.
             <ul class="cf">
                 <li><a href="#browsersupport"><strong>Browser Support:</strong></a> <a href="https://docs.angularjs.org/guide/ie">Same as Angular 1.2</a>; IE8+</li>
                     <li><strong>Licensing Fees:</strong> $0, nada, nutin' (licensed under the <a href="http://opensource.org/licenses/MIT">MIT License</a>) but <a href="#about">Nick does accept tips</a></li>
-                <li><strong>Installation:</strong> n/a, just include <pre>angular.ngcss.min.js</pre></li>
+                <li><a href="#gettingstarted"><strong>Installation:</strong></a> n/a, just include <pre>angular.ngcss.min.js</pre></li>
                     <li><strong>Tiny!</strong> Only ~5,000 bytes compressed</li>
 
-                <li>CSS can be live-bound or updated via the custom <pre>$broadcast</pre> event <em>updateCss</em></li>
-                    <li><pre>$scope</pre> can be initilized within the CSS itself, allowing for complete isolation of CSS-related code</li>
-
                 <li>Near-zero learning curve; it's just Javascript &amp; Angular embedded within CSS!</li>
-                    <li>Your CSS stays CSS; no language features to learn or mentally decode</li>
-                <li>Angular+Vanilla Javascript toolkit with no external dependencies</li>
-                    <li>No need for developer debugging tools, just view source or inspect element</li>
+                    <li><pre>$scope</pre> and <a href="#options"><pre>options</pre></a> can be initilized within the CSS itself, allowing for complete isolation of CSS-related code</li>
+
                 <li>Create complex mixins with nested Javascript/JSON <pre>object</pre>s via the <em>css</em> Filter</li>
-                    <li>Client-side CSS preprocessor and reprocessor capabilities with no plugins required</li>
-                <li><pre>camelCase</pre> to <pre>dash-case</pre> of Javascript <pre>object</pre> keys converted auto-magicially</li>
-                    <li><pre>eval</pre>uated Javascript fully sandboxed by default</li>
-                <li>Use any Javascript library within your CSS, not just language supported functions</li>
-                    <li><pre>$scope</pre> can be isolated or imported from any Angular <pre>$element</pre></li>
+                    <li>Your CSS stays CSS; no language features to learn or mentally decode</li>
                 <li>Ability to use <pre class="ng">Variable</pre>s within <pre>style</pre> attributes</li>
+                    <li>No need for developer debugging tools, just view source or inspect element</li>
+                <li><pre>$scope</pre> can be isolated or imported from any Angular <pre>$element</pre></li>
+                    <li>Source code is fully commented and accessible to the brave and not-so-brave alike</li>
+                <li><pre>camelCase</pre> to <pre>dash-case</pre> of Javascript <pre>object</pre> keys converted auto-magicially</li>
+                    <li><pre>eval</pre>uated Javascript fully isolated by default</li>
+                <li>Angular+Vanilla Javascript toolkit with no external dependencies</li>
+                    <li>CSS can be live-bound or updated via the custom <pre>$broadcast</pre> event <em>updateCss</em></li>
+                <li>Use any Javascript library within your CSS, not just language supported functions</li>
                     <li>Supports external <pre>SCRIPT</pre> references within the CSS (e.g. <pre>&lt;script src='<a href="https://github.com/gka/chroma.js">https://github.com/gka/chroma.js</a>'&gt;&lt;/script&gt;</pre>).</li>
-                <li>Source code is fully commented and accessible to the brave and not-so-brave alike</li>
+                <li>Client-side CSS preprocessor and reprocessor capabilities with no plugins required (ngCss is <a href="http://www.lesscss.org/">LESS</a> <a href="http://www.sass-lang.com/">SASS</a>y and more <a href="http://learnboost.github.io/stylus/">Stylus</a>h than the competition ;)</li>
             </ul>
             <!-- http://www.styleweekly.com/richmond/the-hr-department/Content?oid=1721447 -->
             <img src="img/twistedsister.png" style="position: absolute; width: 7%; left: 1%; margin-top: -0.7%;" alt="Our (twisted) sister project: CjsSS.js" />
@@ -765,8 +743,9 @@
                     The <a href="https://docs.angularjs.org/guide/scope">Angular <pre>$scope</pre></a> that will be used by the directive:
                     <ul>
                         <li>
-                            <pre>"isolated"</pre> -
-                            the directive will operate with its own <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate <pre>$scope</pre></a>.
+                            <pre>"parent"</pre> -
+                            the directive will operate in the <a href="https://docs.angularjs.org/guide/directive">context of the original Angular scope</a>.
+                            <!--the <a href="https://docs.angularjs.org/guide/scope"><pre>$scope</pre></a> in effect for the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> referred to in the defined parent Javascript scope (as<pre>script</pre>) will be imported.-->
                         </li>
                         <li>
                             <pre>"#ID"</pre> -
@@ -778,8 +757,7 @@
                         </li>
                         <li>
                             <i>otherwise</i> -
-                            the directive will operate in the <a href="https://docs.angularjs.org/guide/directive">context of the original Angular scope</a>.
-                            <!--the <a href="https://docs.angularjs.org/guide/scope"><pre>$scope</pre></a> in effect for the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Element.id">HTML Element.id</a> referred to in the defined parent Javascript scope (as<pre>script</pre>) will be imported.-->
+                            the directive will operate with its own <a href="https://docs.angularjs.org/guide/directive#isolating-the-scope-of-a-directive">isolate <pre>$scope</pre></a>.
                         </li>
                     </ul>
                 </div>
@@ -873,6 +851,7 @@
         </div>
 
         
+        <a name="gettingstarted"></a>
         <div class="gettingstarted">
             <h2>Getting Started</h2>
 
@@ -955,21 +934,25 @@
         </div>
 
 
-        <div class="examples" ng-controller="ExamplesController">
+        <div class="examples">
             <!--<style id="iNoSuck" ng-css="{ script: 'global', live: true }">
                 /*<script>
                     console.log("neek!!");
                 </script>*/
             </style>-->
             <!--<style id="iSuck" ng-css="{ script: 'isolated', live: true }"></style>-->
-            <style ng-css="{ script: 'local', live: true }">
+            <style ng-css="{ script: '#ngCss', scope: '#ngCss', live: true }">
+                /*<script>
+                    //console.log(neek);
+                </script>*/
+
                 TABLE {
                     margin: 1% 0 0 0;
                     width: 100%;
                 }
-                    TABLE.liveExample {
-                        height: 300px;
-                    }
+                TABLE.liveExample {
+                    height: 300px;
+                }
                 TABLE TH,
                 TABLE TD {
                     white-space: nowrap;
@@ -1033,7 +1016,6 @@
 
             <h2>Examples</h2>
             Configure your own example of ngCss:
-
             <table>
                 <tr>
                     <th><label for="type">HTML Tag</label></th>
@@ -1080,9 +1062,9 @@
                     <th><label for="scope">Scope (Angular Scoping)</label></th>
                     <td>
                         <select id="scope" ng-model="ex.scope">
-                            <option value="''" style="background-color: yellow;">Parent Scope (Default)</option>
+                            <option value="''">Parent Scope (Default)</option>
                             <option value="'isolated'">Isolate Scope</option>
-                            <option value="'#red'" style="background-color: yellow;">#ID</option>
+                            <option value="'#red'">#ID</option>
                             <option value="{{ex.scopeFn}}">[function]</option>
                             <option value="{{ex.scopeProp}}">[$scope.property]</option>
                         </select>
@@ -1101,17 +1083,22 @@
                     </td>
                 </tr>
                 <tr>
+                    <th><label for="async">Callback</label></th>
+                    <td>
+                        Reports <pre>$scope.$id</pre>'s
+                    </td>
+                </tr>                <tr>
                     <td colspan="2">
                         <button ng-click="buildExample()">Load Example</button>
                     </td>
                 </tr>
             </table>
-
+            
             <h3>Complex Example</h3>
             This page is setup as a complex example; be sure to view source and explore the code for more examples and ideas.
             The two live-bound STYLE elements share one <pre>$scope</pre> and are setup to allow for in-line SCRIPTs (so all of the data is setup within the STYLE element itself, not in the <pre>ng-controller</pre>) and it imports the <pre>$scope</pre> from the <pre>ng-controller</pre>.
             Have a play with the various CSS values and see the changes live in this page:
-            <table id="liveExample" ng-controller="PageController">
+            <table id="liveExample">
                 <thead>
                     <tr>
                         <th>Selector</th>
@@ -1123,27 +1110,27 @@
                     <tr>
                         <td>DIV.gotchas</td>
                         <td>background-color</td>
-                        <td><input ng-model="$cssScope.oCSS.gotchas.backgroundColor" /></td>
+                        <td><input ng-model="oCSS.gotchas.backgroundColor" /></td>
                     </tr>
                     <tr>
                         <td>BODY</td>
                         <td>color</td>
-                        <td><input ng-model="$cssScope.oCSS.color" /></td>
+                        <td><input ng-model="oCSS.color" /></td>
                     </tr>
                     <tr>
                         <td>BODY</td>
                         <td>font-family</td>
-                        <td><input ng-model="$cssScope.oCSS.fontFamily" /></td>
+                        <td><input ng-model="oCSS.fontFamily" /></td>
                     </tr>
                     <tr>
                         <td>[Pretty Font]</td>
                         <td>font-family</td>
-                        <td><input ng-model="$cssScope.oCSS.fonts.pretty" /></td>
+                        <td><input ng-model="oCSS.fonts.pretty" /></td>
                     </tr>
                     <tr>
                         <td>[Main Color]</td>
                         <td>background-color</td>
-                        <td><input ng-model="$cssScope.oCSS.mainColor" /></td>
+                        <td><input ng-model="oCSS.mainColor" /></td>
                     </tr>
                 </tbody>
             </table>
@@ -1276,7 +1263,7 @@
                     d = document,
                     e = d.documentElement,
                     g = d.body || d.getElementsByTagName('body')[0],
-                    x = w.innerWidth || e.clientWidth || g.clientWidth,
+                    //x = w.innerWidth || e.clientWidth || g.clientWidth,
                     y = w.innerHeight || e.clientHeight || g.clientHeight,
                     h = (y * 0.55) + "px",
                     $nsr = d.getElementById("nsr")
@@ -1341,6 +1328,8 @@
                         div {
                             display: inline;
                             padding: 5px;
+                            white-space: nowrap;
+                            margin: 5px;
                         }
                         pre {
                             display: inline;
@@ -1370,8 +1359,8 @@
                         </ script>*/
                     </style>
             
-                    <style type="text/css" id="myAngularCss" ng-css="{ script: {_{ex.script}_}, scope: {_{ex.scope}_}, live: {_{ex.live}_}, async: {_{ex.async}_}, callback: {_{ex.callback}_} }">
-                        /*ngcss({ script: true })*/
+                    <style id="myAngularCss" type="text/css" ng-css="{ script: {_{ex.script}_}, scope: {_{ex.scope}_}, live: {_{ex.live}_}, async: {_{ex.async}_}, callback: {_{ex.callback}_} }">
+                        /*ng-css({ script: true })*/
                         /*<script>
                             $scope.metrics = [];
                             $scope.metrics.push("Javascript code running in CSS *" + (window.myAngularApp ? "with" : "without") + "* access to the page's `window` object");
@@ -1385,7 +1374,7 @@
                             color: /*{{color || 'gray'}}*/;
                         }
                         /*{{myMixin | css:true:true}}*/
-                    </style>
+                    </style><link id="myAngularCss" href="example.css" rel="stylesheet" ng-css="{ script: {_{ex.script}_}, scope: {_{ex.scope}_}, live: {_{ex.live}_}, async: {_{ex.async}_}, callback: {_{ex.callback}_} }" />
                                     
                     <script type="text/javascript" src="js/angular.min.js"></ script>
                     <script type="text/javascript" src="js/angular.ngcss.js"></ script>
