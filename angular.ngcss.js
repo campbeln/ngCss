@@ -1,5 +1,5 @@
 /*
-ngCss v0.9a (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9b (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 */
@@ -14,7 +14,7 @@ License: MIT
         //reScriptTag = /<[\/]?script.*?>/gi,
         reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
         $services = {
-            version: 'v0.9a',
+            version: 'v0.9b',
             cache: oCache,
 
             config: {
@@ -863,6 +863,15 @@ License: MIT
                 //# .restrict the directive to attribute only (e.g.: <style ng-css>...</style> or <link ng-css ... />)
                 restrict: "A",
 
+                //# TODO: move logic from template to here?
+                //compile: function ($element, $attrs) {
+                //    if ($attrs[ngCss].substr(0, 1) !== "{") {
+                //        //$attrs[ngCss] = "";
+                //        delete $attrs[ngCss];
+                //        delete $attrs.$attr[ngCss];
+                //    }
+                //},
+
                 //# Compiles the oCache entry for each ng-css $element while scooping out the CSS before Angular processes it (so we avoid issues with double processing of {{vars}})
                 template: function ($element, $attrs) {
                     //# If this is a shorthand definition, clear the ngCss attribute from $attrs
@@ -898,9 +907,8 @@ License: MIT
 
                 //# Define the link function to wire-up our functionality at data-link
                 link: function ($scope, $element /*, $attrs, $controllers*/) {
-                    var fnCallback, oParentCacheEntry, oResults, a_sScripts,
-                        oCacheEntry = oCache[$element[0].id],
-                        $evalScope = $ngCss.scope.outer($element) || $scope //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
+                    var fnOptionsCallback,
+                        oCacheEntry = oCache[$element[0].id]
                     ;
 
                     //# Update the $element's CSS based on our $scope
@@ -928,19 +936,24 @@ License: MIT
                         }
 
                         //# Call our options .callback (if any), resetting it to null if it returns false
-                        if (fnCallback && $services.callOptionFn(fnCallback, oCacheEntry) === false) {
-                            fnCallback = null;
+                        if (fnOptionsCallback && $services.callOptionFn(fnOptionsCallback, oCacheEntry) === false) {
+                            fnOptionsCallback = null;
                         }
                     } //# updateCSS
 
 
-                    //#
+                    //# Finalizes the .link call
                     function finalizeLink(oCompiledOptions) {
+                        var oResults,
+                            a_sScripts = oCacheEntry.scripts || [],
+                            oParentCacheEntry = $services.resolve(oCacheEntry, "evaler.parent")
+                        ;
+
                         //# If the $scope got squashed above, .warn the user
                         if (!$ngCss.scope.is($scope)) {
                             $services.warn("Error collecting $scope for", $element, oCompiledOptions.scope);
                         }
-                            //# Else we have a valid $scope
+                        //# Else we have a valid $scope
                         else {
                             //# If the caller opted to enable SCRIPT tags within the CSS and there are some to .run
                             //#     TODO: Setup an error message for a non-.is.fn .evaler.$eval?
@@ -977,7 +990,8 @@ License: MIT
                         }
                     }
 
-                    //# Rewire the $services.scope.hook functionality now that we have access to our $evalScope to process our .script correctly
+
+                    //# Rewire the $services.scope.hook functionality
                     $services.scope.hook = function (oData) {
                         //# Reset the value of .go based on if .s(cope) is === false
                         //#     NOTE: This implements the boolean value of .script for ngCss that isn't present in the base implementation
@@ -988,20 +1002,18 @@ License: MIT
                     //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
                     compileOptions(
                         oCacheEntry,
-                        $evalScope,
+                        $ngCss.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
                         function (oCompiledOptions) {
                             //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
-                            //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would b ecalled directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
+                            //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
                             var sScope = ($services.is.fn(oCompiledOptions.scope) ? $services.callOptionFn(oCompiledOptions.scope, oCacheEntry) : oCompiledOptions.scope),
                                 bFinailize = true
                             ;
 
-                            //# 
-                            a_sScripts = oCacheEntry.scripts || [];
-                            oParentCacheEntry = $services.resolve(oCacheEntry, "evaler.parent");
-                            fnCallback = oCompiledOptions.callback;
+                            //# Collect the fnOptionsCallback reference for use in .updateCSS
+                            fnOptionsCallback = oCompiledOptions.callback;
 
-                            //# If the caller passed in a string
+                            //# If the caller passed is a string
                             if ($services.is.str(sScope)) {
                                 //# If this is an #ID specification, .scope.get (NOT bForce'ing a new $scope if we can't find one on the referenced #ID so we get the .warn below)
                                 if (sScope.substr(0, 1) === "#") {
@@ -1014,13 +1026,14 @@ License: MIT
                                         finalizeLink(oCompiledOptions);
                                     });
                                 }
-                                //# Else if the caller requested an isolate $scope, create a .$new one now
-                                else if (sScope === "isolated") {
+                                //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
+                                else if (sScope !== "parent") {
                                     $scope = $ngCss.scope.$new({ isolate: true });
                                     oCacheEntry.foreignScope = $scope;
                                 }
                             }
-                            ////# Else if we have a oParentCacheEntry
+                            //# Else if we have a oParentCacheEntry
+                            //#     NOTE: `evaler.parent` refers to the Javascript scope/heritage, . This is no longer necessary as the user should address the parent scope directly via #ParentID.
                             //else if (oParentCacheEntry) {
                             //    //# Collect the parent $scope (if any)
                             //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
@@ -1033,7 +1046,7 @@ License: MIT
                             //    }
                             //}
 
-                            //# 
+                            //# If we haven't bFinailize'd above, do so now
                             if (bFinailize) {
                                 finalizeLink(oCompiledOptions);
                             }
