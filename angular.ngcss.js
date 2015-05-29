@@ -1,5 +1,5 @@
 /*
-ngCss v0.9c (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9d (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 */
@@ -15,7 +15,7 @@ License: MIT
         //reScriptTag = /<[\/]?script.*?>/gi,
         reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
         $services = {
-            version: 'v0.9c',
+            version: 'v0.9d',
             cache: oCache,
             coc: oCallOnComplete,
 
@@ -1075,6 +1075,7 @@ License: MIT
                             );
                         } //# fnDoLink
                     ;
+                    
 
                     //# If we successfully collected the oCacheEntry, call fnDoLink now
                     if (oCacheEntry) {
@@ -1083,6 +1084,7 @@ License: MIT
                     //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in fnDoLink as a .c(all)o(n)c(omplete)
                     else {
                         $services.coc[sID] = function() {
+                            $services.coc[sID] = null;
                             oCacheEntry = oCache[sID];
                             fnDoLink();
                         };
