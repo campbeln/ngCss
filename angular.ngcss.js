@@ -1,5 +1,5 @@
 /*
-ngCss v0.9b (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9c (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 */
@@ -10,12 +10,14 @@ License: MIT
 
     //# Setup the $services required by the evalers
     var oCache = {},
+        oCallOnComplete = {},
         _Object_prototype_toString = Object.prototype.toString, //# code-golf
         //reScriptTag = /<[\/]?script.*?>/gi,
         reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
         $services = {
-            version: 'v0.9b',
+            version: 'v0.9c',
             cache: oCache,
+            coc: oCallOnComplete,
 
             config: {
                 attr: '',
@@ -57,8 +59,7 @@ License: MIT
 
                 //# Default implementation of the hook called during recursion
                 hook: function (oData) { return oData; },
-
-
+                
                 //# Rescursive resolver
                 $: function (oData, oCacheEntry) {
                     //# If the .s(cope) .is.fn, call it with the oCacheEntry while resetting .s(cope) to its result
@@ -183,6 +184,7 @@ License: MIT
                         tag: sTag,
                         options: getOptions(_originalElement, bIsStyleAttribute ? "" : sCSS),
                         scripts: (bIsStyleAttribute ? null : $services.getScripts(sCSS, _originalElement)),
+                        //data: optionallySetBelow,
                         //evaler: setBelow,
 
                         //# Implicitly removes and leading/training CSS comments from the .d(elimiter)1/.d(elimiter)2
@@ -290,6 +292,11 @@ License: MIT
 
                                                 //# Now that our oCacheEntry is fully configured (+/-oParentCacheEntry), we can fnCallback (.concat'ing the a__AddedElements into our own a__Elements as we go)
                                                 fnCallback(oCacheEntry, a__Elements.concat(a__AddedElements));
+
+                                                //# If we have an entry in oCallOnComplete, call it now
+                                                if ($services.is.fn(oCallOnComplete[sID])) {
+                                                    oCallOnComplete[sID]();
+                                                }
                                             }
                                         );
                                     }
@@ -314,6 +321,11 @@ License: MIT
                     //# If we haven't bRecursed, we can fnCallback now that our oCacheEntry is fully configured
                     if (!bRecursed) {
                         fnCallback(oCacheEntry, a__Elements);
+
+                        //# If we have an entry in oCallOnComplete, call it now
+                        if ($services.is.fn(oCallOnComplete[sID])) {
+                            oCallOnComplete[sID]();
+                        }
                     }
                 } //# getEvaler
 
@@ -373,7 +385,8 @@ License: MIT
                                         getEvaler(oCache[sID] /*, false*/);
                                     }
                                     //# Else the call failed, so .warn and call the fnCallback ourselves (sending in undefined/a__Elements)
-                                    //#      NOTE: If !bSuccess, then sCSS holds the error info
+                                    //#     NOTE: If !bSuccess, then sCSS holds the error info
+                                    //#     NOTE: We do not call a oCallOnComplete entry below as the call failed
                                     else {
                                         $services.warn("Error retrieving `" + _element.href + "` for", _element, sCSS);
                                         fnCallback(undefined, a__Elements);
@@ -666,6 +679,13 @@ License: MIT
         $services.config.scopeAlias = "script";
         $services.config.expandAttr = "{ $scopeAlias: '$attr', scope: '$attr' }";
 
+        //# Rewire the $services.scope.hook functionality
+        $services.scope.hook = function (oData) {
+            //# Reset the value of .go based on if .s(cope) is === false
+            //#     NOTE: This implements the boolean value of .script for ngCss that isn't present in the base implementation
+            oData.go = (oData.s !== false);
+            return oData;
+        };
 
         //# Transforms the passed object into an inline CSS string when bSelector is falsey (e.g. `color: red;`) or into CSS entry when bSelector is truthy (e.g. `selector { color: red; }`), where object._selector or vSelector is used for the selector
         oModule.filter('css', function () {
@@ -793,11 +813,10 @@ License: MIT
 
 
                 //# Shortcut method to listen for the custom .$broadcast event
-                updateCssListener: function (fnUpdateCSS) {
-                    $rootScope.$on('updateCss', function () {
-                        fnUpdateCSS();
-                    });
-                } //# updateCssListener
+                //#     NOTE: fnDoUpdateCSS !== .updateCSS as fnDoUpdateCSS must be parameterless
+                addCssListener: function (fnDoUpdateCSS) {
+                    $rootScope.$on('updateCss', fnDoUpdateCSS);
+                } //# addCssListener
             };
         }]); //# oModule.factory(ngCss...
 
@@ -851,13 +870,107 @@ License: MIT
                     }
                 );
             } //# compileOptions
+
             
+            //# Finalizes a .link call
+            function finalizeLink(oCacheEntry, $scope, oCompiledOptions) {
+                var oResults,
+                    a_sScripts = oCacheEntry.scripts || [],
+                    oParentCacheEntry = $services.resolve(oCacheEntry, "evaler.parent"),
+                    fnDoUpdateCSS = function () { updateCSS(oCacheEntry); }
+                ;
+
+                //# If the $scope got squashed, .warn the user
+                if (!$ngCss.scope.is($scope)) {
+                    $services.warn("Error collecting $scope for", oCacheEntry.dom, oCompiledOptions.scope);
+                }
+                //# Else we have a valid $scope
+                else {
+                    //# Populate the oCacheEntry with the implementation-specific .data
+                    oCacheEntry.data = {
+                        callback: oCompiledOptions.callback,
+                        doCallback: $services.is.fn(oCompiledOptions.callback),
+                        $scope: $scope
+                    };
+
+                    //# If the caller opted to enable SCRIPT tags within the CSS and there are some to .run
+                    //#     TODO: Setup an error message for a non-.is.fn .evaler.$eval?
+                    if (oCompiledOptions.script !== false && oCacheEntry.evaler.run !== 0) {
+                        //# If we have .scripts in our oParentCacheEntry to .run
+                        if (oParentCacheEntry && $services.is.arr(oParentCacheEntry.scripts) && oParentCacheEntry.evaler.run !== 0) {
+                            //# Prepend oParentCacheEntry's .script entries into a_sScripts and decrement its .run
+                            a_sScripts = oParentCacheEntry.scripts.concat(a_sScripts);
+                            oParentCacheEntry.evaler.run--;
+                        }
+
+                        //# .evaler.$eval the a_sScripts (signaling we want an object as the return so we can report any .errors) then decrement our .run
+                        //#     TODO: Verify there are a_sScripts to .run?
+                        oResults = oCacheEntry.evaler.$eval(a_sScripts, { $scope: $scope, scope: $scope }, true);
+                        oCacheEntry.evaler.run--;
+
+                        //# If we had .errors .eval'ing the a_sScripts, .warn the caller
+                        if (oResults.errors.length > 0) {
+                            $services.warn("Error evaluating Javascript for", oCacheEntry.dom, oResults.errors);
+                        }
+                    }
+
+                    //# Now that the .css and $scope has been evaluated, fnDoUpdateCSS
+                    fnDoUpdateCSS();
+
+                    //# If we are supposed to live-bind, .$watch for any changes in the $scope (calling our fnDoUpdateCSS when they occur)
+                    if (oCompiledOptions.live) {
+                        $scope.$watch(fnDoUpdateCSS);
+                    }
+                        //# Else we are not .live, so setup the event listener
+                    else {
+                        $ngCss.addCssListener(fnDoUpdateCSS);
+                    }
+                }
+            }
+
+
+            //# Update the oCacheEntry's CSS
+            function updateCSS(oCacheEntry) {
+                try {
+                    var sProcessedCSS = oCacheEntry.data.$scope.$eval($interpolate(oCacheEntry.css));
+
+                    //# If this is a non-LINK/STYLE entry set the sProcessedCSS into the style attribute
+                    if (oCacheEntry.tag === "*") {
+                        //$element.attr("style", sProcessedCSS);
+                        //oCacheEntry.dom.setAttribute("style", sProcessedCSS); //# <=IE7 no likie, besides .style.cssText is more correct
+                        oCacheEntry.dom.style.cssText = sProcessedCSS;
+                    }
+                        //# Else this is a LINK/STYLE entry, so set the sProcessedCSS into the .html
+                    else {
+                        //# If this is IE8 or below we'll have a .styleSheet (and .styleSheet.cssText) to set .css into, else we can use .innerHTML, see: http://stackoverflow.com/questions/9250386/trying-to-add-style-tag-using-javascript-innerhtml-in-ie8 , http://www.quirksmode.org/dom/html/#t00 , http://stackoverflow.com/questions/5618742/ie-8-and-7-bug-when-dynamically-adding-a-stylesheet , http://jonathonhill.net/2011-10-12/ie-innerhtml-style-bug/
+                        //#     TODO: Test in IE8-
+                        //if (oCacheEntry.dom.styleSheet) {
+                        //    oCacheEntry.dom.styleSheet.cssText = sProcessedCSS;
+                        //} else {
+                        //    oCacheEntry.dom.innerHTML = sProcessedCSS;
+                        //}
+                        oCacheEntry.dom.innerHTML = sProcessedCSS;
+                    }
+
+                    //# Call our options .callback (if any), resetting .doCallback to false if it returns false
+                    if (oCacheEntry.data.doCallback && $services.callOptionFn(oCacheEntry.data.callback, oCacheEntry) === false) {
+                        oCacheEntry.data.doCallback = false;
+                    }
+                } catch (e) {
+                    $services.warn(
+                        "Error updating CSS for",
+                        $services.resolve(oCacheEntry, "dom"),
+                        e
+                    );
+                }
+            } //# updateCSS
+
             
             //# Reset the delimiters in our oDefaults before sending them into .compile
             //#     NOTE: This can be done once as this .directive exists at runtime only under a single angular instance
             oDefaults.d1 = $interpolate.startSymbol();
             oDefaults.d2 = $interpolate.endSymbol();
-
+                    
             //# Return the Angular .directive structure
             return {
                 //# .restrict the directive to attribute only (e.g.: <style ng-css>...</style> or <link ng-css ... />)
@@ -907,151 +1020,73 @@ License: MIT
 
                 //# Define the link function to wire-up our functionality at data-link
                 link: function ($scope, $element /*, $attrs, $controllers*/) {
-                    var fnOptionsCallback,
-                        oCacheEntry = oCache[$element[0].id]
+                    var sID = $element[0].id,
+                        oCacheEntry = oCache[sID],
+                        fnDoLink = function() {
+                            //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
+                            compileOptions(
+                                oCacheEntry,
+                                $ngCss.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
+                                function (oCompiledOptions) {
+                                    //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
+                                    //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
+                                    var sScope = ($services.is.fn(oCompiledOptions.scope) ? $services.callOptionFn(oCompiledOptions.scope, oCacheEntry) : oCompiledOptions.scope),
+                                        bFinailize = true
+                                    ;
+
+                                    //# If the caller passed is a string
+                                    if ($services.is.str(sScope)) {
+                                        //# If this is an #ID specification, .scope.get (NOT bForce'ing a new $scope if we can't find one on the referenced #ID so we get the .warn below)
+                                        if (sScope.substr(0, 1) === "#") {
+                                            bFinailize = false;
+
+                                            //# Wait for every other directive to be setup before running our logic
+                                            $timeout(function () {
+                                                $scope = $ngCss.scope.get(sScope /*, false*/);
+                                                oCacheEntry.foreignScope = $scope;
+                                                finalizeLink(oCacheEntry, $scope, oCompiledOptions);
+                                            });
+                                        }
+                                            //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
+                                        else if (sScope !== "parent") {
+                                            $scope = $ngCss.scope.$new({ isolate: true });
+                                            oCacheEntry.foreignScope = $scope;
+                                        }
+                                    }
+                                    //# Else if we have a oParentCacheEntry
+                                    //#     NOTE: `evaler.parent` refers to the Javascript scope/heritage. The code below is no longer necessary as the user should address the parent Angular scope directly via #ParentID.
+                                    //else if (oParentCacheEntry) {
+                                    //    //# Collect the parent $scope (if any)
+                                    //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
+                                    //    oResults = $ngCss.scope.get(oParentCacheEntry.dom /*, false*/);
+
+                                    //    //# If a parent $scope was found
+                                    //    if (oResults) {
+                                    //        //# Reset our $scope and oCache it under .foreignScope (for use in subsiquent .scope.get calls)
+                                    //        oCacheEntry.foreignScope = $scope = oResults;
+                                    //    }
+                                    //}
+
+                                    //# If we haven't bFinailize'd above, do so now
+                                    if (bFinailize) {
+                                        finalizeLink(oCacheEntry, $scope, oCompiledOptions);
+                                    }
+                                }
+                            );
+                        } //# fnDoLink
                     ;
 
-                    //# Update the $element's CSS based on our $scope
-                    function updateCSS() {
-                        try {
-                            var sProcessedCSS = $scope.$eval($interpolate(oCacheEntry.css));
-
-                            //# If this is a non-LINK/STYLE entry set the sProcessedCSS into the style attribute
-                            if (oCacheEntry.tag === "*") {
-                                $element.attr("style", sProcessedCSS);
-                            }
-                            //# Else this is a LINK/STYLE entry, so set the sProcessedCSS into the .html
-                            else {
-                                //# If this is IE8 or below we'll have a .styleSheet (and .styleSheet.cssText) to set .css into, else we can use .innerHTML, see: http://stackoverflow.com/questions/9250386/trying-to-add-style-tag-using-javascript-innerhtml-in-ie8 , http://www.quirksmode.org/dom/html/#t00 , http://stackoverflow.com/questions/5618742/ie-8-and-7-bug-when-dynamically-adding-a-stylesheet , http://jonathonhill.net/2011-10-12/ie-innerhtml-style-bug/
-                                //#     TODO: Test in IE8-
-                                //if ($element.styleSheet) {
-                                //    $element.styleSheet.cssText = sProcessedCSS;
-                                //} else {
-                                //    $element.innerHTML = sProcessedCSS;
-                                //}
-                                $element.html(sProcessedCSS);
-                            }
-                        } catch (e) {
-                            $services.warn("Error updating CSS for", oCacheEntry.dom, e);
-                        }
-
-                        //# Call our options .callback (if any), resetting it to null if it returns false
-                        if (fnOptionsCallback && $services.callOptionFn(fnOptionsCallback, oCacheEntry) === false) {
-                            fnOptionsCallback = null;
-                        }
-                    } //# updateCSS
-
-
-                    //# Finalizes the .link call
-                    function finalizeLink(oCompiledOptions) {
-                        var oResults,
-                            a_sScripts = oCacheEntry.scripts || [],
-                            oParentCacheEntry = $services.resolve(oCacheEntry, "evaler.parent")
-                        ;
-
-                        //# If the $scope got squashed above, .warn the user
-                        if (!$ngCss.scope.is($scope)) {
-                            $services.warn("Error collecting $scope for", $element, oCompiledOptions.scope);
-                        }
-                        //# Else we have a valid $scope
-                        else {
-                            //# If the caller opted to enable SCRIPT tags within the CSS and there are some to .run
-                            //#     TODO: Setup an error message for a non-.is.fn .evaler.$eval?
-                            if (oCompiledOptions.script !== false && oCacheEntry.evaler.run !== 0) {
-                                //# If we have .scripts in our oParentCacheEntry to .run
-                                if (oParentCacheEntry && $services.is.arr(oParentCacheEntry.scripts) && oParentCacheEntry.evaler.run !== 0) {
-                                    //# Prepend oParentCacheEntry's .script entries into a_sScripts and decrement its .run
-                                    a_sScripts = oParentCacheEntry.scripts.concat(a_sScripts);
-                                    oParentCacheEntry.evaler.run--;
-                                }
-
-                                //# .evaler.$eval the a_sScripts (signaling we want an object as the return so we can report any .errors) then decrement our .run
-                                //#     TODO: Verify there are a_sScripts to .run?
-                                oResults = oCacheEntry.evaler.$eval(a_sScripts, { $scope: $scope, scope: $scope }, true);
-                                oCacheEntry.evaler.run--;
-
-                                //# If we had .errors .eval'ing the a_sScripts, .warn the caller
-                                if (oResults.errors.length > 0) {
-                                    $services.warn("Error evaluating Javascript for", oCacheEntry.dom, oResults.errors);
-                                }
-                            }
-
-                            //# Now that the .css and $scope has been evaluated, .updateCSS in the $element
-                            updateCSS();
-
-                            //# If we are supposed to live-bind, .$watch for any changes in the $scope (calling our .updateCSS function when they occur)
-                            if (oCompiledOptions.live) {
-                                $scope.$watch(updateCSS);
-                            }
-                                //# Else we are not .live, so setup the event listener
-                            else {
-                                $ngCss.updateCssListener(updateCSS);
-                            }
-                        }
+                    //# If we successfully collected the oCacheEntry, call fnDoLink now
+                    if (oCacheEntry) {
+                        fnDoLink();
                     }
-
-
-                    //# Rewire the $services.scope.hook functionality
-                    $services.scope.hook = function (oData) {
-                        //# Reset the value of .go based on if .s(cope) is === false
-                        //#     NOTE: This implements the boolean value of .script for ngCss that isn't present in the base implementation
-                        oData.go = (oData.s !== false);
-                        return oData;
-                    };
-
-                    //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
-                    compileOptions(
-                        oCacheEntry,
-                        $ngCss.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
-                        function (oCompiledOptions) {
-                            //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
-                            //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
-                            var sScope = ($services.is.fn(oCompiledOptions.scope) ? $services.callOptionFn(oCompiledOptions.scope, oCacheEntry) : oCompiledOptions.scope),
-                                bFinailize = true
-                            ;
-
-                            //# Collect the fnOptionsCallback reference for use in .updateCSS
-                            fnOptionsCallback = oCompiledOptions.callback;
-
-                            //# If the caller passed is a string
-                            if ($services.is.str(sScope)) {
-                                //# If this is an #ID specification, .scope.get (NOT bForce'ing a new $scope if we can't find one on the referenced #ID so we get the .warn below)
-                                if (sScope.substr(0, 1) === "#") {
-                                    bFinailize = false;
-
-                                    //# Wait for every other directive to be setup before running our logic
-                                    $timeout(function() {
-                                        $scope = $ngCss.scope.get(sScope /*, false*/);
-                                        oCacheEntry.foreignScope = $scope;
-                                        finalizeLink(oCompiledOptions);
-                                    });
-                                }
-                                //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
-                                else if (sScope !== "parent") {
-                                    $scope = $ngCss.scope.$new({ isolate: true });
-                                    oCacheEntry.foreignScope = $scope;
-                                }
-                            }
-                            //# Else if we have a oParentCacheEntry
-                            //#     NOTE: `evaler.parent` refers to the Javascript scope/heritage, . This is no longer necessary as the user should address the parent scope directly via #ParentID.
-                            //else if (oParentCacheEntry) {
-                            //    //# Collect the parent $scope (if any)
-                            //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
-                            //    oResults = $ngCss.scope.get(oParentCacheEntry.dom /*, false*/);
-
-                            //    //# If a parent $scope was found
-                            //    if (oResults) {
-                            //        //# Reset our $scope and oCache it under .foreignScope (for use in subsiquent .scope.get calls)
-                            //        oCacheEntry.foreignScope = $scope = oResults;
-                            //    }
-                            //}
-
-                            //# If we haven't bFinailize'd above, do so now
-                            if (bFinailize) {
-                                finalizeLink(oCompiledOptions);
-                            }
-                        }
-                    );
+                    //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in fnDoLink as a .c(all)o(n)c(omplete)
+                    else {
+                        $services.coc[sID] = function() {
+                            oCacheEntry = oCache[sID];
+                            fnDoLink();
+                        };
+                    }
                 } //# link
             }; //# return...
         }]); //# oModule.directive(ngCss...
