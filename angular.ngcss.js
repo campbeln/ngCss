@@ -1,7 +1,8 @@
 /*
-ngCss v0.9d (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9e (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
+Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
 */
 
 //# Orchestration function used to DI/ease maintenance across CjsSS.js, ngCss and EvalerJS
@@ -15,7 +16,7 @@ License: MIT
         //reScriptTag = /<[\/]?script.*?>/gi,
         reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
         $services = {
-            version: 'v0.9d',
+            version: 'v0.9e',
             cache: oCache,
             coc: oCallOnComplete,
 
@@ -890,7 +891,8 @@ License: MIT
                     oCacheEntry.data = {
                         callback: oCompiledOptions.callback,
                         doCallback: $services.is.fn(oCompiledOptions.callback),
-                        $scope: $scope
+                        $i: $interpolate(oCacheEntry.css),
+                        $s: $scope
                     };
 
                     //# If the caller opted to enable SCRIPT tags within the CSS and there are some to .run
@@ -932,7 +934,7 @@ License: MIT
             //# Update the oCacheEntry's CSS
             function updateCSS(oCacheEntry) {
                 try {
-                    var sProcessedCSS = oCacheEntry.data.$scope.$eval($interpolate(oCacheEntry.css));
+                    var sProcessedCSS = oCacheEntry.data.$i(oCacheEntry.data.$s);
 
                     //# If this is a non-LINK/STYLE entry set the sProcessedCSS into the style attribute
                     if (oCacheEntry.tag === "*") {
