@@ -1,697 +1,89 @@
 /*
-ngCss v0.9e (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9f (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
 */
-
-//# Orchestration function used to DI/ease maintenance across CjsSS.js, ngCss and EvalerJS
-(function (_window, _document, angular, fnNgCss, fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory) {
-    'use strict';
-
-    //# Setup the $services required by the evalers
-    var oCache = {},
-        oCallOnComplete = {},
-        _Object_prototype_toString = Object.prototype.toString, //# code-golf
-        //reScriptTag = /<[\/]?script.*?>/gi,
-        reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
-        $services = {
-            version: 'v0.9e',
-            cache: oCache,
-            coc: oCallOnComplete,
-
-            config: {
-                attr: '',
-                scopeAlias: 'scope',
-                expandAttr: "{ $scopeAlias: '$attr' }"
-            },
-
-            //# Javascript Scope and Context resolution service used within .compile
-            scope: {
-                //# Recursively resolves the .s(cope) and .c(ontext) for the passed oCacheEntry
-                resolve: function (oCacheEntry, oPrelimOptions, fnOptionEvaler) {
-                    var sScopeAlias = $services.config.scopeAlias,  //# code-golf
-                        oReturnVal = $services.scope.$(             //# Build the object (collecting the .s(cope)) and pass it into the rescurive $ function
-                            {
-                                //c: undefined,
-                                s: $services.resolve(fnOptionEvaler(oCacheEntry.options.a), sScopeAlias) || oPrelimOptions[sScopeAlias],
-                                go: true
-                            },
-                            oCacheEntry
-                        )
-                    ;
-
-                    //# If a .c(ontext) has been passed and we are not a local or usestrict .s(cope), .warn the user
-                    if (oReturnVal.c) {
-                        switch (oReturnVal.s.toLowerCase()) {
-                            case "local":
-                            case "usestrict": {
-                                break;
-                            }
-                            default: {
-                                $services.warn("Context cannot be used with `" + oReturnVal.s + "`", oCacheEntry.dom);
-                                //break;
-                            }
-                        }
-                    }
-
-                    return oReturnVal;
-                },
-
-                //# Default implementation of the hook called during recursion
-                hook: function (oData) { return oData; },
-                
-                //# Rescursive resolver
-                $: function (oData, oCacheEntry) {
-                    //# If the .s(cope) .is.fn, call it with the oCacheEntry while resetting .s(cope) to its result
-                    if ($services.is.fn(oData.s)) {
-                        oData.s = $services.callOptionFn(oData.s, oCacheEntry);
-                    }
-
-                    //# If the .s(cope) .is.obj
-                    if ($services.is.obj(oData.s)) {
-                        //# If .s(cope) .is.jq, extract the first DOM element (so it's caught below by .is.dom), else leave it as-is
-                        oData.s = ($services.is.jq(oData.s) ? oData.s[0] : oData.s);
-
-                        //# If .s(cope) is a DOM element, collect its .id (while ensuring it has one) as a #selector
-                        if ($services.is.dom(oData.s)) {
-                            oData.s.id = oData.s.id || $services.newId();
-                            oData.s = '#' + oData.s.id;
-                        }
-                        //# Else if .s(cope) is a .context definition, set .c(ontext) and reset .s(cope) accordingly
-                        //#     NOTE: This can result in some funky behavior if the .scope defines an [object] or [function] that (eventually) returns an [object] as the last defined .context will win
-                        else if ($services.config.scopeAlias in oData.s && 'context' in oData.s) {
-                            oData.c = oData.s.context;
-                            oData.s = oData.s[$services.config.scopeAlias];
-                        }
-                        //# Else .s(cope) is a plain old Javascript object, so set oContext and reset .s(cope) to 'local'
-                        else {
-                            oData.c = oData.s;
-                            oData.s = 'local';
-                        }
-                    }
-
-                    //# Before recursing or returning, call the .hook
-                    //#     NOTE: This enables implementation-specific .s(cope) and .c(ontext) decoding (such as accessing the surrounding $scope in ngCss)
-                    oData = $services.scope.hook(oData);
-
-                    //# If the .s(cope) is a recursive type, recurse now to recalculate the .s(cope)
-                    if ($services.is.obj(oData.s) || $services.is.fn(oData.s)) {
-                        oData = $services.scope.$(oData, oCacheEntry);
-                    }
-
-                    return oData;
-                }
-            }, //# scope
-
-
-            //# Calls option functions with the standard arguments
-            callOptionFn: function (fn, oCacheEntry) {
-                return ($services.is.fn(fn) ? fn(oCacheEntry.dom, oCacheEntry) : undefined);
-            },
-
-
-            //# Sets up the oCache entry for the passed _element
-            compile: function (_element, oPrelimOptions, fnOptionEvaler, fnCallback) {
-                var sID,
-                    bIsLink = false,
-                    a__Elements = [_element],
-                    reD1 = new RegExp("/\\*" + oPrelimOptions.d1, "g"),
-                    reD2 = new RegExp(oPrelimOptions.d2 + "\\*/", "g"),
-                    reCSSOptions = new RegExp("^\\s*\\/\\*" + $services.config.attr + "\\((\\{.*?\\})\\)\\*\\/", "i") //# Match the first non-whitespace characters on /*cjsss({ .*? })*/
-                ;
-
-
-                //# Wrapper for the passed fnOptionEvaler to catch and .warn on any e(rrors)
-                //#     NOTE: We do this to limit the requirements on the passed fnOptionEvaler as well as to standardize the error messages (as well as to clearly define the required interface of fnOptionEvaler)
-                //#     TODO: Not certian this is catching the errors as intended
-                function optionEvaler(sCode) {
-                    try {
-                        return fnOptionEvaler(sCode);
-                    } catch (e) {
-                        $services.warn("Error evaluating `" + sCode + "` for", _element, e);
-                        return {};
-                    }
-                } //# optionEvaler
-
-
-                //# Evaluates the options within the passed sCSS as well as the _element's .attr
-                //#     TODO: Move to under $services?
-                function getOptions(_element, sCSS) {
-                    //# Ensure that .hasAttribute exists (IE8+ only, hence the polyfill)
-                    _element.hasAttribute = _element.hasAttribute || $services.hasAttribute;
-
-                    var a_sMatch,
-                        sBaseAttrName = $services.config.attr, //# code-golf
-                        sAttrName = (_element.hasAttribute(sBaseAttrName) ? sBaseAttrName : "data-" + sBaseAttrName), //# Determine the sAttrName in use (with or without the leading data-)
-                        sAttrOptions = _element.getAttribute(sAttrName) || "",
-                        oReturnVal = {
-                            attr: sAttrName,
-                            a: (sAttrOptions ? //# Preprocess the attribute options to guarentee an object
-                                //(sAttrOptions.indexOf("{") === 0 ? sAttrOptions : "{" + $services.config.scopeAlias + ":'" + sAttrOptions + "'}") :
-                                (sAttrOptions.indexOf("{") === 0 ? sAttrOptions : $services.config.expandAttr.replace(/\$scopeAlias/g, $services.config.scopeAlias).replace(/\$attr/g, sAttrOptions.replace(/'/g, "\\'"))) :
-                                "{}"
-                            )
-                        }
-                    ;
-                    
-                    //# If this is a LINK or STYLE tag with sCSS to process
-                    //#      NOTE: Non-LINK/STYLE tags do not pass in sCSS, so it'll resolve to falsey and will therefore not fall into this block
-                    if (sCSS) {
-                        //# Run the .match to locate any in-line reCSSOptions, setting .options.c(ss) if any are found
-                        //#     NOTE: Due to how reCSSOptions is defined (requiring leading/trailing {}'s), we will always have an object definition in .c
-                        a_sMatch = sCSS.match(reCSSOptions);
-                        if (a_sMatch && a_sMatch[1]) {
-                            oReturnVal.c = a_sMatch[1];
-                        }
-                    }
-
-                    return oReturnVal;
-                } //# getOptions
-
-
-                //# Sets the oCache entry for the passed _element
-                //#     TODO: Move to under $services?
-                function setCache(_element, sCSS, sTag, _link) {
-                    var bIsStyleAttribute = (sTag === "*"),
-                        _originalElement = _link || _element
-                    ;
-
-                    //# Setup the oCache entry for this _element
-                    //#     NOTE: .scripts are not allowed in style attributes, nor are inline-defined options hence the bIsStyleAttribute ternary logic
-                    oCache[_originalElement.id] = {
-                        link: _link || null,
-                        dom: _element,
-                        tag: sTag,
-                        options: getOptions(_originalElement, bIsStyleAttribute ? "" : sCSS),
-                        scripts: (bIsStyleAttribute ? null : $services.getScripts(sCSS, _originalElement)),
-                        //data: optionallySetBelow,
-                        //evaler: setBelow,
-
-                        //# Implicitly removes and leading/training CSS comments from the .d(elimiter)1/.d(elimiter)2
-                        //#     NOTE: In Angular, the .d(elimiter)1/.d(elimiter)2 are hard-set from $interpolate.startSymbol/.endSymbol
-                        css: (sCSS || "").replace(reScript, "").replace(reD1, oPrelimOptions.d1).replace(reD2, oPrelimOptions.d2)
-                    };
-                } //# setCache
-
-
-                //# Processes the .scope to (re)set the .evaler
-                function getEvaler(oCacheEntry, bSubsequentCall) {
-                    var vParent,
-                        oScope = $services.scope.resolve(oCacheEntry, oPrelimOptions, optionEvaler),
-                        sScope = oScope.s,
-                        bSetEvaler = false,
-                        bRecursed = false
-                    ;
-
-                    //# Sets the .evaler entry into the oCacheEntry
-                    //#     NOTE: oCacheEntry, oScope.c(context) and bSetEvaler are used from the outer scope
-                    function setCacheEvaler(oParentCacheEntry, sScope, sRunScope, fnEval) {
-                        var a_sScripts = oCacheEntry.scripts || [],
-                            iRun = 0 //# Default iRun to 0 so nothing is fnEval'ed by default
-                        ;
-
-                        //# Flip bSetEvaler
-                        bSetEvaler = true;
-
-                        //# If the oCacheEntry has .scripts to .run
-                        if (a_sScripts.length > 0) {
-                            //# Safely collect the sRunScope's first character then reset iRun based on the sRunScope
-                            //#     NOTE: A sRunScope of "local" or "useStrict" require the .scripts to be .run on every call, hence the use of -1 (as a decremented -1 will never equal 0) while any other sRunScope requires only a single .run, hence 1 (which once decremented is equal to 0 and therefore not .run again)
-                            //#     NOTE: Set use sRunScope.length rather than 1 below to catch any instances where sRunScope is passed as undefined (and therefore or'ed into "")
-                            sRunScope = (sRunScope || "").substr(0, 1);
-                            iRun = (sRunScope === "l" || sRunScope === "u" ? -1 : sRunScope.length);
-                        }
-
-                        //# Set the .evaler entry in the oCacheEntry
-                        oCacheEntry.evaler = {
-                            parent: oParentCacheEntry,
-                            scope: sScope,
-                            context: oScope.c,
-                            $eval: fnEval,
-                            run: iRun
-                        };
-                    } //# setCacheEvaler
-
-                    //# If we are .go to .getEvaler
-                    if (oScope.go) {
-                        //# If we haven't ended up with a valid sScope after .scope.resolve's processing
-                        if (!$services.is.str(sScope)) {
-                            //# If this is a bSubsequentCall, .warn the user
-                            //#      NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
-                            if (bSubsequentCall) {
-                                $services.warn("Invalid scope `" + sScope + "` for", _element, sScope);
-                            }
-                        }
-                        //# Else if the .evaler hasn't been set yet, if the sScope has changed or if the .c(ontext) has changed
-                        else if (!oCacheEntry.evaler || oCacheEntry.evaler.scope !== sScope || oCacheEntry.evaler.context !== oScope.c) {
-                            //# If this is an non-related sScope
-                            if (sScope.substr(0, 1) !== "#") {
-                                //# If the sScope defines a valid interface under the .evalFactory, .setCacheEvaler
-                                if ($services.is.fn($services.evalFactory[sScope])) {
-                                    //# If this is a .sandbox request, create a new $iframe
-                                    if (sScope === "sandbox") {
-                                        //oScope.c = $services.iframeFactory("allow-scripts", "" /*, undefined*/);
-                                        // neek
-                                        setCacheEvaler(null, sScope, sScope, $services.evalFactory[sScope]($services.iframeFactory("allow-scripts", "" /*, undefined*/)).global());
-                                    }
-                                    //# neek
-                                    else {
-                                        setCacheEvaler(null, sScope, sScope, $services.evalFactory[sScope](oScope.c));
-                                    }
-                                }
-                                //# Else the sScope is not a valid interface, so if this is a bSubsequentCall .warn the user
-                                //#     NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
-                                else if (bSubsequentCall) {
-                                    $services.warn("Invalid evaler `" + sScope + "` for", oCacheEntry.dom);
-                                }
-                            }
-                            //# Else the sScope is denoting a DOM ID
-                            else {
-                                //# Try to pull our vParent from the oCache
-                                vParent = oCache[sScope.substr(1)];
-                                
-                                //# If we found our vParent, .setCacheEvaler
-                                if (vParent) {
-                                    setCacheEvaler(vParent, sScope, vParent.evaler.scope, vParent.evaler.$eval); //# TODO: .evaler is null/blank
-                                }
-                                //# Else we need to bRecursed to .compile our vParent
-                                else {
-                                    //# If we can find our vParent in the _document, flip bRecursed then, you know... recurse
-                                    vParent = _document.getElementById(sScope.substr(1));
-                                    if (vParent) {
-                                        bRecursed = true;
-
-                                        //# Recurse to .compile our vParent, passing in our own fnCallback
-                                        $services.compile(vParent, oPrelimOptions, fnOptionEvaler,
-                                            function(oParentCacheEntry, a__AddedElements) {
-                                                //# If our oParentCacheEntry .is.obj, .setCacheEvaler
-                                                //#     NOTE: Any errors with .compile'ing our vParent are .warn'd by .compile so no need for another .warn here
-                                                if ($services.is.obj(oParentCacheEntry)) {
-                                                    setCacheEvaler(oParentCacheEntry, sScope, oParentCacheEntry.evaler.scope, oParentCacheEntry.evaler.$eval);
-                                                }
-
-                                                //# Now that our oCacheEntry is fully configured (+/-oParentCacheEntry), we can fnCallback (.concat'ing the a__AddedElements into our own a__Elements as we go)
-                                                fnCallback(oCacheEntry, a__Elements.concat(a__AddedElements));
-
-                                                //# If we have an entry in oCallOnComplete, call it now
-                                                if ($services.is.fn(oCallOnComplete[sID])) {
-                                                    oCallOnComplete[sID]();
-                                                }
-                                            }
-                                        );
-                                    }
-                                    //# Else the DOM ID in the sScope isn't present in the _document, so .warn
-                                    else {
-                                        $services.warn("Unknown parent `" + sScope + "` for", _element /*, undefined*/);
-                                    }
-                                }
-                            }
-                        }
-                        //# Else we have an up-to-date .evaler so flip bSetEvaler as there is no need to reset it below
-                        else {
-                            bSetEvaler = true;
-                        }
-                    }
-
-                    //# If we didn't bSetEvaler above, do it now as a null-entry
-                    if (!bSetEvaler) {
-                        setCacheEvaler(/*undefined, "", "", undefined*/);
-                    }
-
-                    //# If we haven't bRecursed, we can fnCallback now that our oCacheEntry is fully configured
-                    if (!bRecursed) {
-                        fnCallback(oCacheEntry, a__Elements);
-
-                        //# If we have an entry in oCallOnComplete, call it now
-                        if ($services.is.fn(oCallOnComplete[sID])) {
-                            oCallOnComplete[sID]();
-                        }
-                    }
-                } //# getEvaler
-
-                
-                //####################
-                //# "Procedural" code
-                //####################
-                //# Collect the sID (while ensuring the _element has an .id)
-                sID = _element.id = _element.id || $services.newId();
-
-                //# If we already have a oCache entry, send it into getEvaler to optionally reset our .evaler
-                if (oCache[sID]) {
-                    getEvaler(oCache[sID], true);
-                }
-                //# Else we need to build the oCache entry for this _element
-                else {
-                    //# Determine the .tagName and process accordingly
-                    switch (_element.tagName.toLowerCase()) {
-                        case "style": {
-                            //# .setCache for this STYLE tag then remove the CSS from the _element
-                            //#     NOTE: We remove the CSS so we avoid issues with partial styles and (in Angular) double processing of {{vars}}
-                            setCache(_element, _element.innerHTML, "s" /*, undefined*/);
-                            _element.innerHTML = "";
-                            break;
-                        }
-                        case "link": {
-                            bIsLink = true;
-
-                            //# .get the file contents from the CSS file
-                            $services.get(_element.href,
-                                //# .getOptions for our _element (collecting only the .a(ttribute)), .optionEvaler it then safely .resolve its .async setting (if any) or fallback to oPrelimOptions's .async
-                                $services.resolve(optionEvaler(getOptions(_element /*, ""*/).a), "async") || oPrelimOptions.async,
-
-                                //# fnCallback
-                                function (bSuccess, sCSS /*, $xhr*/) {
-                                    //# If the .get was a bSuccess
-                                    if (bSuccess) {
-                                        var _style = _document.createElement('style');
-
-                                        //# Setup the oCache entry for the new _style _element
-                                        //#     NOTE: .setCache needs to be called prior to replacing the LINK _element with the new _style
-                                        setCache(_style, sCSS, "l", _element);
-
-                                        //# Setup the new _style
-                                        //#     NOTE: .innerHTML is set by the external managers on update, so there is no need to set it below
-                                        _style.type = "text/css"; //# _style.setAttribute("type", "text/css");
-                                        _style.setAttribute(oCache[sID].options.attr, oCache[sID].options.a);
-                                        //_style.innerHTML = sCSS;
-
-                                        //# Replace the LINK _element with the new _style, then reset _element and copy across the .id
-                                        _element.parentNode.replaceChild(_style, _element);
-                                        _element = _style;
-                                        _style.id = sID;
-
-                                        //# Now send the oCache entry into .getEvaler
-                                        //#     NOTE: This is called here as oPrelimOptions.async may have been true, so we always call it here to avoid any/all .async issues
-                                        getEvaler(oCache[sID] /*, false*/);
-                                    }
-                                    //# Else the call failed, so .warn and call the fnCallback ourselves (sending in undefined/a__Elements)
-                                    //#     NOTE: If !bSuccess, then sCSS holds the error info
-                                    //#     NOTE: We do not call a oCallOnComplete entry below as the call failed
-                                    else {
-                                        $services.warn("Error retrieving `" + _element.href + "` for", _element, sCSS);
-                                        fnCallback(undefined, a__Elements);
-                                    }
-                                }
-                            );
-                            break;
-                        }
-                        default: {
-                            //# .setCache for this _element (collecting the .css from the STYLE tag) then remove the style attribute from our _element
-                            //#     NOTE: We remove the CSS so we avoid issues with partial styles and (in Angular) double processing of {{vars}}
-                            setCache(_element, _element.getAttribute("style"), "*" /*, undefined*/);
-                            _element.removeAttribute("style");
-                        }
-                    } //# switch
-
-                    //# So long as this is not a bIsLink (which calls .getEvaler above), send the oCache entry into .getEvaler
-                    if (!bIsLink) {
-                        getEvaler(oCache[sID] /*, false*/);
-                    }
-                }
-            }, //# $services.compile
-
-
-            //# Wrapper for a GET AJAX call
-            get: function (sUrl, bAsync, vCallback) {
-                /* global ActiveXObject: false */ //# JSHint "ActiveXObject variable undefined" error supressor
-                var XHRConstructor = (XMLHttpRequest || ActiveXObject),
-                    $xhr
-                ;
-
-                //# IE5.5+ (ActiveXObject IE5.5-9), based on http://toddmotto.com/writing-a-standalone-ajax-xhr-javascript-micro-library/
-                try {
-                    $xhr = new XHRConstructor('MSXML2.XMLHTTP.3.0');
-                } catch (e) { }
-
-                //# If a function was passed rather than an object, object-ize it (else we assume it's an object with at least a .fn)
-                if ($services.is.fn(vCallback)) {
-                    vCallback = { fn: vCallback, arg: null };
-                }
-
-                //# If we were able to collect an $xhr object
-                if ($xhr) {
-                    //# Setup the $xhr callback
-                    //$xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-                    $xhr.onreadystatechange = function () {
-                        //# If the request is finished and the .responseText is ready
-                        if ($xhr.readyState === 4) {
-                            vCallback.fn(
-                                ($xhr.status === 200 || ($xhr.status === 0 && sUrl.substr(0, 7) === "file://")),
-                                $xhr.responseText,
-                                vCallback.arg,
-                                $xhr
-                            );
-                        }
-                    };
-
-                    //# GET the sUrl
-                    $xhr.open("GET", sUrl, bAsync);
-                    $xhr.send();
-                }
-                    //# Else we were unable to collect the $xhr, so signal a failure to the vCallback.fn
-                else {
-                    vCallback.fn(false, null, vCallback.arg, $xhr);
-                }
-            }, //# $services.get
-
-
-            //# Collects the SCRIPT blocks within the passed sCSS, returning the eval stack
-            getScripts: function (sCSS, _element) {
-                var a_sSrc, i,
-                    a_sReturnVal = (sCSS || "").match(reScript) || [],
-                    reDeScript = /<[\/]?script.*?>/gi,
-                    reScriptSrc = /<script.*?src=['"](.*?)['"].*?>/i,
-                    fnCallback = function (bSuccess, sJS, oData) {
-                        a_sReturnVal[oData.i] = (bSuccess ? sJS : "");
-
-                        //# If we were not successful, .warn the user
-                        //#      NOTE: If !bSuccess, then sJS holds the error info
-                        if (!bSuccess) {
-                            $services.warn("Error retrieving `" + oData.src + "` for", _element, sJS);
-                        }
-                    }
-                ;
-
-                //# Traverse the extracted SCRIPT tags from the .css (if any)
-                for (i = 0; i < a_sReturnVal.length; i++) {
-                    a_sSrc = reScriptSrc.exec(a_sReturnVal[i]);
-
-                    //# If there is an a_sSrc in the SCRIPT tag, .get the resulting js synchronously (hence `false`, as order of SCRIPTs matter)
-                    //#     TODO: Try to make this async-able, but would need to promise this interface to accomplish
-                    if (a_sSrc && a_sSrc[1]) {
-                        $services.get(a_sSrc[1], false, {
-                            fn: fnCallback,
-                            arg: {
-                                i: i,
-                                src: a_sSrc[1]
-                            }
-                        });
-                    }
-                        //# Else this is an inline SCRIPT tag, so load the reDeScript'd code into the a_sReturnVal eval stack
-                    else {
-                        a_sReturnVal[i] = a_sReturnVal[i].replace(reDeScript, "");
-                    }
-                }
-
-                //# Return our a_sReturnVal to the caller
-                return a_sReturnVal;
-            }, //# $services.getScripts
-
-
-            //# .hasAttribute Polyfill for IE8-
-            hasAttribute: function(s) {
-                return typeof this[s] !== 'undefined';
-            }, //# $services.hasAttribute
-
-
-            //# Datatype checking functionality
-            is: {
-                str: function (s) {
-                    //# NOTE: This function also treats a 0-length string (null-string) as a non-string
-                    return ((typeof s === 'string' || s instanceof String) && s !== ''); //# was: (typeof s === 'string' || s instanceof String);
-                },
-                fn: function (f) {
-                    return (_Object_prototype_toString.call(f) === '[object Function]');
-                },
-                obj: function (o) {
-                    return (o && o === Object(o) && !$services.is.fn(o)); //# was: (o && o === Object(o));
-                },
-                arr: function (a) {
-                    return (_Object_prototype_toString.call(a) === '[object Array]');
-                },
-                dom: function (x) {
-                    return (x && $services.is.str(x.tagName) && $services.is.fn(x.getAttribute));
-                },
-                jq: function (x) {
-                    return (x && $services.is.fn(x.replaceWith) && $services.is.dom(x[0]));
-                }
-            }, //# $services.is
-
-
-            //# Transforms the passed object into an inline CSS string when vSelector is falsey (e.g. `color: red;`) or into CSS entry when vSelector is truthy (e.g. `selector { color: red; }`), where object._selector or vSelector is used for the selector
-            mixin: function (oObj, vSelector, bCrLf) {
-                var sReturnVal = "",
-                    sCrLf = (bCrLf ? "\n" : "")
-                ;
-
-                //# Transforms the passed object into an inline CSS string (e.g. `color: red;\n`)
-                //#     NOTE: This function recurses if it finds an object
-                function toCss(oObj, sCrLf) {
-                    var sKey, vEntry,
-                        sReturnVal = ""
-                    ;
-
-                    //# Traverse the oObj
-                    for (sKey in oObj) {
-                        //# So long as this is a .hasOwnProperty and is not a ._selector
-                        if (oObj.hasOwnProperty(sKey) && sKey !== "_selector") {
-                            vEntry = oObj[sKey];
-
-                            //# Transform the sKey from camelCase to dash-case (removing the erroneous leading dash if it's there)
-                            sKey = sKey.replace(/([A-Z])/g, '-$1').toLowerCase();
-                            sKey = (sKey.indexOf("-") === 0 ? sKey.substr(1) : sKey);
-
-                            //# If this vEntry .is.obj(ect), recurse toCss() the sub-obj
-                            if ($services.is.obj(vEntry)) {
-                                sReturnVal += toCss(vEntry, sCrLf);
-                            }
-                            //# Else we assume this is a string-able based vEntry
-                            else {
-                                sReturnVal += sKey + ":" + vEntry + ";" + sCrLf;
-                            }
-                        }
-                    }
-
-                    return sReturnVal;
-                }
-
-
-                //# If the passed oObj .is.obj, we need to reset our sReturnVal
-                if ($services.is.obj(oObj)) {
-                    sReturnVal = (vSelector ? ($services.is.str(vSelector) ? vSelector : oObj._selector) + " {" : "") + sCrLf +
-                        toCss(oObj, sCrLf) + sCrLf +
-                        (vSelector ? "}" : "")
-                    ;
-                }
-                //# Else if the passed oObj .is.str, then we have a selector-style request
-                else if ($services.is.str(oObj)) {
-                    
-                }
-
-                return sReturnVal;
-            }, //# $services.mixin
-
-
-            //# Returns an unused HTML ID
-            //#     NOTE: Use the following snipit to ensure a DOM _element has an .id while still collecting the sID: `sID = _element.id = _element.id || $services.newId();`
-            //#     NOTE: sPrefix must begin with /A-Za-z/ to be HTML4 compliant (see: http://stackoverflow.com/questions/70579/what-are-valid-values-for-the-id-attribute-in-html)
-            newId: function (sPrefix) {
-                var sReturnVal;
-
-                //# Ensure a sPrefix was passed
-                sPrefix = sPrefix || $services.config.attr + "_";
-
-                //# Do while our sReturnVal exists as a DOM ID in the _document, try to find a unique ID returning the first we find
-                //#     NOTE: sReturnVal is not re-declared on each loop as the var is hoisted
-                do {
-                    sReturnVal = sPrefix + Math.random().toString(36).substr(2, 5);
-                } while (_document.getElementById(sReturnVal));
-
-                return sReturnVal;
-            }, //# $services.newId
-
-
-            //# Safely resolves the passed sPath within the passed oObject, returning undefined if the sPath is not located
-            //#     NOTE: To default a value, use the following snipit: `var v = $services.resolve({}, 'some.path') || 'default value';`
-            resolve: function(oObject, sPath) {
-                var a_sPath, i;
-
-                //# Since we reuse the passed oObject as our return value, reset it to undefined if it's not .is.obj
-                oObject = ($services.is.obj(oObject) ? oObject : undefined);
-
-                //# If the passed oObject .is.obj and sPath .is.str, .split sPath into a_sPath
-                if (oObject && $services.is.str(sPath)) {
-                    a_sPath = sPath.split(".");
-
-                    //# Traverse the a_sPath, resetting the oObject to the value present at the current a_sPath or undefined if it's not present (while falling from the loop)
-                    for (i = 0; i < a_sPath.length; i++) {
-                        if ($services.is.obj(oObject) && a_sPath[i] in oObject) {
-                            oObject = oObject[a_sPath[i]];
-                        } else {
-                            oObject = undefined;
-                            break;
-                        }
-                    }
-                }
-
-                return oObject;
-            }, //# $services.resolve
-
-
-            //# Safely warns the user on the console
-            warn: function (sMessage, _element, vError) {
-                var c = console || function () { }; //# code-golf
-                (c.warn || c.log || c)($services.config.attr + ": " + sMessage, _element, vError);
-            } //# $services.warn
-        } //# $services
-    ;
-
-
-    //####################
-    //# "Procedural" code
-    //####################
-    //# Build the passed fnEvalerFactory
-    //#     NOTE: The fnLocalEvaler is specifically placed outside of the "use strict" block to allow for the local eval calls below to persist across eval'uations
-    $services.evalFactory = fnEvalerFactory(_window, _document, $services, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory);
-
-    //# Now that we have everything orchestrated, run the fnNgCss functionality
-    fnNgCss(_document, angular, $services);
-})(
-    window,
-    document,
-    angular,
+(function (angular, _window, _document, fnOrchestration, fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory) {
     //# ngCss functionality
-    function (_document, angular, $services) {
+    var fnImplementation = function ($services) {
         'use strict';
 
         //# Setup the required "global" vars
         var ngCss = "ngCss",
-            oCache = $services.cache,
             oModule = angular.module(ngCss, []),
-            oDefaults = {
-                script: "isolated",
-                scope: "",
-                async: true,
-                live: false,
-                callback: null
-            }
+            $ngCss = {
+                version: "v0.9f",
+                options: {
+                    script: "isolated",
+                    scope: "",
+                    async: true,
+                    live: false,
+                    callback: null
+                },
+                data: {
+                    cache: $services.cache,
+                    //inject: {},
+                    services: {}
+                },
+                services: $services
+
+                //# There is no need to expose any functionality on the top level of the $ngCss as this is accomplished via our .factory and .filter
+            },
+            oDefaultOptions = $ngCss.options,                               //# Include these alias variables for improved code minimization
+            //oInjections = $ngCss.data.inject,
+            oCache = $services.cache
         ;
 
-        //# Transforms the passed sCamelCase to dash-case (removing the erroneous leading dash if it's there)
-        function c2d(sCamelCase) {
-            var sDashCase = sCamelCase.replace(/([A-Z])/g, '-$1').toLowerCase();
-            return (sDashCase.indexOf("-") === 0 ? sDashCase.substr(1) : sDashCase);
-        } //# c2d
+
+        //# Set our .version and .extend the passed $services with our own Angular (ng) logic then .conf(igure) the $services
+        //#      NOTE: Setting up $services like this allows for any internal logic to be overridden as well as allows for all versions of CjsSS to coexist under a single definition (though some .conf logic would need to be used)
+        $services.version[ngCss] = $ngCss.version;
+        angular.extend($services, {
+            ng: {
+                //# Stub out the .factory and .directive interfaces (which are populated below)
+                //factory: null,
+                //directive: null,
+
+                //# Use the .mixin as our .filter
+                filter: $services.mixin,
 
 
-        //# Set our .attr and .scopeAlias into the $services.config (so it can do error reporting and attribute processing correctly)
-        $services.config.attr = c2d(ngCss);
-        $services.config.scopeAlias = "script";
-        $services.config.expandAttr = "{ $scopeAlias: '$attr', scope: '$attr' }";
+                //# Configures the base $services object to work with the current implementation
+                conf: function () {
+                    //# Transforms the passed sCamelCase to dash-case (removing the erroneous leading dash if it's there)
+                    function c2d(sCamelCase) {
+                        var sDashCase = sCamelCase.replace(/([A-Z])/g, '-$1').toLowerCase();
+                        return (sDashCase.indexOf("-") === 0 ? sDashCase.substr(1) : sDashCase);
+                    } //# c2d
 
-        //# Rewire the $services.scope.hook functionality
-        $services.scope.hook = function (oData) {
-            //# Reset the value of .go based on if .s(cope) is === false
-            //#     NOTE: This implements the boolean value of .script for ngCss that isn't present in the base implementation
-            oData.go = (oData.s !== false);
-            return oData;
-        };
+
+                    //# Set our .attr and .scopeAlias into the $services.config (so it can do error reporting and attribute processing correctly)
+                    $services.config.attr = c2d(ngCss);
+                    $services.config.scopeAlias = "script";
+                    $services.config.expandAttr = "{ $scopeAlias: '$attr', scope: '$attr' }";
+
+                    //# Rewire the $services.scope.hook functionality
+                    $services.scope.hook = function (oData) {
+                        //# Reset the value of .go based on if .s(cope) is === false
+                        //#     NOTE: This implements the boolean value of .script for ngCss that isn't present in the base implementation
+                        oData.go = (oData.s !== false);
+                        return oData;
+                    };
+
+                    //# Before importing any external functionality, copy the original $service function references into .data.services
+                    //#     NOTE: angular.extend does not do a deep copy, while .merge does but is v1.4+ - http://stackoverflow.com/questions/17242927/deep-merge-objects-with-angularjs, https://docs.angularjs.org/api/ng/function/angular.extend , https://docs.angularjs.org/api/ng/function/angular.merge
+                    $ngCss.data.services = $services.extend({}, $services);
+
+                } //# conf
+            }
+        }); //# extend($services...
+        $services.ng.conf();
+
 
         //# Transforms the passed object into an inline CSS string when bSelector is falsey (e.g. `color: red;`) or into CSS entry when bSelector is truthy (e.g. `selector { color: red; }`), where object._selector or vSelector is used for the selector
         oModule.filter('css', function () {
-            //# Return our .mixin to Angular
-            return $services.mixin;
+            return $services.ng.filter;
         }); //# oModule.filter('css'...
 
 
@@ -738,7 +130,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                         if (oCache[$element[0].id]) {
                             $scope = oCache[$element[0].id].foreignScope;
                         }
-                        
+
                         //# If we didn't collect the $scope from the oCache
                         if (!$scope) {
                             //# Set $scope and bIsIsolate via Angular's functions (resetting $scope if no .isolateScope exists)
@@ -752,22 +144,25 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 } catch (e) {
                     $services.warn("Error collecting $scope for", vElement, e);
                 }
-                
+
                 //# If we didn't locate a $scope but we are supposed to bForce a $scope, return a .$new one, else we're good to return whatever $scope we found (if any)
                 return (!$scope && bForce === true ? $rootScope.$new(true) : $scope);
             } //# scope.get
 
 
-            return {
-                version: $services.version,
-                
-                //# Extends our ngCss oDefaults options with the passed oOptions while returning a copy of the oDefaults
+            //# Populate the .$rootScope and the .factory structure under our $services, then return the .factory
+            $services.ng.$rootScope = $rootScope;
+            $services.ng.factory = {
+                //# Expose our $ngCss object to allow for overloading of our internal functionality
+                $ngCss: $ngCss,
+
+                //# Extends our ngCss oDefaultOptions options with the passed oOptions while returning a copy of the oDefaultOptions
                 defaults: function (oOptions) {
-                    oDefaults = angular.extend(oDefaults, oOptions);
-                    return angular.extend({}, oDefaults);
+                    oDefaultOptions = angular.extend(oDefaultOptions, oOptions);
+                    return angular.extend({}, oDefaultOptions);
                 }, //# defaults
 
-                
+
                 //# Returns an unused sPrefix'ed HTML ID
                 //#     NOTE: sPrefix must begin with /A-Za-z/ to be HTML-compliant
                 newId: function (sPrefix) {
@@ -801,7 +196,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
 
                     //#
-                    outer: function($element) {
+                    outer: function ($element) {
                         var $returnVal = getScope($element.parent() /*, false*/);
                         return ($returnVal !== $rootScope ? $returnVal : undefined);
                     }
@@ -819,6 +214,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     $rootScope.$on('updateCss', fnDoUpdateCSS);
                 } //# addCssListener
             };
+            return $services.ng.factory;
         }]); //# oModule.factory(ngCss...
 
 
@@ -829,8 +225,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         //#         options.scope (default: false)          Specifies if the outer $scope is to be used by the directive. A 'false' value for this option results in an isolate scope for the directive and logically requires `options.script` to be enabled (else no variables will be settable).
         //#         options.script (default: false)         Specifies if <script> tags embedded within the CSS are to be executed. "local" specifies that the eval'uations will be done within an isolated closure with local scope, any other truthy value specifies that the eval'uations will be done within an isolated sandboxed enviroment with access only given to the $scope.
         //#         options.live (default: false)           Specifies if changes made within $scope are to be automatically reflected within the CSS.
-        oModule.directive(ngCss, ['$interpolate', '$timeout', ngCss, function ($interpolate, $timeout, $ngCss) {
-            var $blankScope = $ngCss.scope.$new({ isolate: true });
+        oModule.directive(ngCss, ['$interpolate', '$timeout', ngCss, function ($interpolate, $timeout, $ngCssFactory) {
+            var $blankScope = $ngCssFactory.scope.$new({ isolate: true });
 
             //# Compiles the oOptions in effect for the passed oCacheEntry (if any) in the proper priority
             function compileOptions(oCacheEntry, $evalScope, fnCallback) {
@@ -844,7 +240,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                 //# re-.compile the DOM version of the $element so we can (re-)resolve our .evaler and .scope
                 //#     NOTE: We cannot simply pass in $evalScope.$eval as calling .$eval indirectly seems to detach it from it's $evalScope!?
-                $services.compile(oCacheEntry.dom, oDefaults,
+                $services.compile(oCacheEntry.dom, oDefaultOptions,
                     function (sCode) {
                         return $evalScope.$eval(sCode);
                     },
@@ -867,12 +263,12 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                         processCacheOptions(oRecompiledCacheEntry.options);
 
                         //# Set our oReturnVal to the options in the proper priority order
-                        fnCallback(angular.extend({}, oDefaults, oParentOptions.$c, oParentOptions.$a, oRecompiledCacheEntry.options.$c, oRecompiledCacheEntry.options.$a));
+                        fnCallback(angular.extend({}, oDefaultOptions, oParentOptions.$c, oParentOptions.$a, oRecompiledCacheEntry.options.$c, oRecompiledCacheEntry.options.$a));
                     }
                 );
             } //# compileOptions
 
-            
+
             //# Finalizes a .link call
             function finalizeLink(oCacheEntry, $scope, oCompiledOptions) {
                 var oResults,
@@ -882,15 +278,16 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 ;
 
                 //# If the $scope got squashed, .warn the user
-                if (!$ngCss.scope.is($scope)) {
+                if (!$ngCssFactory.scope.is($scope)) {
                     $services.warn("Error collecting $scope for", oCacheEntry.dom, oCompiledOptions.scope);
                 }
-                //# Else we have a valid $scope
+                    //# Else we have a valid $scope
                 else {
                     //# Populate the oCacheEntry with the implementation-specific .data
                     oCacheEntry.data = {
                         callback: oCompiledOptions.callback,
                         doCallback: $services.is.fn(oCompiledOptions.callback),
+                        //inject: { $scope: $scope, scope: $scope },
                         $i: $interpolate(oCacheEntry.css),
                         $s: $scope
                     };
@@ -925,7 +322,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     }
                         //# Else we are not .live, so setup the event listener
                     else {
-                        $ngCss.addCssListener(fnDoUpdateCSS);
+                        $ngCssFactory.addCssListener(fnDoUpdateCSS);
                     }
                 }
             }
@@ -967,14 +364,16 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 }
             } //# updateCSS
 
-            
-            //# Reset the delimiters in our oDefaults before sending them into .compile
+
+            //# Reset the delimiters in our oDefaultOptions before sending them into .compile
             //#     NOTE: This can be done once as this .directive exists at runtime only under a single angular instance
-            oDefaults.d1 = $interpolate.startSymbol();
-            oDefaults.d2 = $interpolate.endSymbol();
-                    
-            //# Return the Angular .directive structure
-            return {
+            oDefaultOptions.d1 = $interpolate.startSymbol();
+            oDefaultOptions.d2 = $interpolate.endSymbol();
+
+            //# Populate the .$interpolate, .$timeout and the .directive structure under our $services, then return the .directive
+            $services.ng.$interpolate = $interpolate;
+            $services.ng.$timeout = $timeout;
+            $services.ng.directive = {
                 //# .restrict the directive to attribute only (e.g.: <style ng-css>...</style> or <link ng-css ... />)
                 restrict: "A",
 
@@ -1002,7 +401,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     //# .compile the DOM version of the $element, post-processing any non-LINK/STYLE tags (as this is the initial .compile)
                     //#     NOTE: fnOptionEvaler uses the $blankScope to asertain the value of .async (if any)
                     //#     NOTE: We cannot simply pass in $blankScope.$eval as calling .$eval indirectly seems to detach it from it's $blankScope!? (not that it matters in this case)
-                    $services.compile($element[0], oDefaults,
+                    $services.compile($element[0], oDefaultOptions,
                         function (sCode) {
                             return $blankScope.$eval(sCode);
                         },
@@ -1024,11 +423,11 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 link: function ($scope, $element /*, $attrs, $controllers*/) {
                     var sID = $element[0].id,
                         oCacheEntry = oCache[sID],
-                        fnDoLink = function() {
+                        fnDoLink = function () {
                             //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
                             compileOptions(
                                 oCacheEntry,
-                                $ngCss.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
+                                $ngCssFactory.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
                                 function (oCompiledOptions) {
                                     //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
                                     //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
@@ -1044,14 +443,14 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                                             //# Wait for every other directive to be setup before running our logic
                                             $timeout(function () {
-                                                $scope = $ngCss.scope.get(sScope /*, false*/);
+                                                $scope = $ngCssFactory.scope.get(sScope /*, false*/);
                                                 oCacheEntry.foreignScope = $scope;
                                                 finalizeLink(oCacheEntry, $scope, oCompiledOptions);
                                             });
                                         }
                                             //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
                                         else if (sScope !== "parent") {
-                                            $scope = $ngCss.scope.$new({ isolate: true });
+                                            $scope = $ngCssFactory.scope.$new({ isolate: true });
                                             oCacheEntry.foreignScope = $scope;
                                         }
                                     }
@@ -1060,7 +459,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                     //else if (oParentCacheEntry) {
                                     //    //# Collect the parent $scope (if any)
                                     //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
-                                    //    oResults = $ngCss.scope.get(oParentCacheEntry.dom /*, false*/);
+                                    //    oResults = $ngCssFactory.scope.get(oParentCacheEntry.dom /*, false*/);
 
                                     //    //# If a parent $scope was found
                                     //    if (oResults) {
@@ -1077,30 +476,738 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             );
                         } //# fnDoLink
                     ;
-                    
+
 
                     //# If we successfully collected the oCacheEntry, call fnDoLink now
                     if (oCacheEntry) {
                         fnDoLink();
                     }
-                    //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in fnDoLink as a .c(all)o(n)c(omplete)
+                        //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in fnDoLink as a .c(all)o(n)c(omplete)
                     else {
-                        $services.coc[sID] = function() {
+                        $services.coc[sID] = function () {
                             $services.coc[sID] = null;
                             oCacheEntry = oCache[sID];
                             fnDoLink();
                         };
                     }
                 } //# link
-            }; //# return...
+            };
+            return $services.ng.directive;
         }]); //# oModule.directive(ngCss...
+    }; //# fnImplementation
+
+
+    //####################################################################################################
+    //# Call fnOrchestration
+    //#     NOTE: We double handle fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler and fnSandboxEvalerFactory to allow them to have limited scopes
+    //####################################################################################################
+    fnOrchestration(_window, _document, fnImplementation, fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory);
+})(
+    //# Include any external libraries
+    angular,
+
+    //# Pass in the standard objects (code-golf)
+    window,
+    document,
+
+    //# fnOrchestration function used to DI/ease maintenance across ngCss, CjsSS.js, $.CjsSS and EvalerJS
+    function (_window, _document, fnImplementation, fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory) {
+        'use strict';
+
+        //# Setup the required $baseServices
+        var oCache = {},
+            oCallOnComplete = {},
+            _Object_prototype_toString = Object.prototype.toString, //# code-golf
+            //reScriptTag = /<[\/]?script.*?>/gi,
+            reScript = /<script.*?>([\s\S]*?)<\/script>/gi,
+            $baseServices = {
+                version: {
+                    //evaler: '',
+                    baseServices: 'v0.9f'
+                },
+                cache: oCache,
+                coc: oCallOnComplete,
+
+                config: {
+                    attr: '',
+                    scopeAlias: 'scope',
+                    expandAttr: "{ $scopeAlias: '$attr' }"
+                },
+
+
+                //# Calls option functions with the standard arguments
+                callOptionFn: function (fn, oCacheEntry) {
+                    return ($baseServices.is.fn(fn) ? fn(oCacheEntry.dom, oCacheEntry) : undefined);
+                },
+
+
+                //# Sets up the oCache entry for the passed _element
+                compile: function (_element, oPrelimOptions, fnOptionEvaler, fnCallback) {
+                    var sID,
+                        bIsLink = false,
+                        a__Elements = [_element],
+                        reD1 = new RegExp("/\\*" + oPrelimOptions.d1, "g"),
+                        reD2 = new RegExp(oPrelimOptions.d2 + "\\*/", "g"),
+                        reCSSOptions = new RegExp("^\\s*\\/\\*" + $baseServices.config.attr + "\\((\\{.*?\\})\\)\\*\\/", "i") //# Match the first non-whitespace characters on /*cjsss({ .*? })*/
+                    ;
+
+
+                    //# Wrapper for the passed fnOptionEvaler to catch and .warn on any e(rrors)
+                    //#     NOTE: We do this to limit the requirements on the passed fnOptionEvaler as well as to standardize the error messages (as well as to clearly define the required interface of fnOptionEvaler)
+                    //#     TODO: Not certian this is catching the errors as intended
+                    function optionEvaler(sCode) {
+                        try {
+                            return fnOptionEvaler(sCode);
+                        } catch (e) {
+                            $baseServices.warn("Error evaluating `" + sCode + "` for", _element, e);
+                            return {};
+                        }
+                    } //# optionEvaler
+
+
+                    //# Evaluates the options within the passed sCSS as well as the _element's .attr
+                    //#     TODO: Move to under $baseServices?
+                    function getOptions(_element, sCSS) {
+                        //# Ensure that .hasAttribute exists (IE8+ only, hence the polyfill)
+                        _element.hasAttribute = _element.hasAttribute || $baseServices.hasAttribute;
+
+                        var a_sMatch,
+                            sBaseAttrName = $baseServices.config.attr, //# code-golf
+                            sAttrName = (_element.hasAttribute(sBaseAttrName) ? sBaseAttrName : "data-" + sBaseAttrName), //# Determine the sAttrName in use (with or without the leading data-)
+                            sAttrOptions = _element.getAttribute(sAttrName) || "",
+                            oReturnVal = {
+                                attr: sAttrName,
+                                a: (sAttrOptions ? //# Preprocess the attribute options to guarentee an object
+                                    //(sAttrOptions.indexOf("{") === 0 ? sAttrOptions : "{" + $baseServices.config.scopeAlias + ":'" + sAttrOptions + "'}") :
+                                    (sAttrOptions.indexOf("{") === 0 ? sAttrOptions : $baseServices.config.expandAttr.replace(/\$scopeAlias/g, $baseServices.config.scopeAlias).replace(/\$attr/g, sAttrOptions.replace(/'/g, "\\'"))) :
+                                    "{}"
+                                )
+                            }
+                        ;
+
+                        //# If this is a LINK or STYLE tag with sCSS to process
+                        //#      NOTE: Non-LINK/STYLE tags do not pass in sCSS, so it'll resolve to falsey and will therefore not fall into this block
+                        if (sCSS) {
+                            //# Run the .match to locate any in-line reCSSOptions, setting .options.c(ss) if any are found
+                            //#     NOTE: Due to how reCSSOptions is defined (requiring leading/trailing {}'s), we will always have an object definition in .c
+                            a_sMatch = sCSS.match(reCSSOptions);
+                            if (a_sMatch && a_sMatch[1]) {
+                                oReturnVal.c = a_sMatch[1];
+                            }
+                        }
+
+                        return oReturnVal;
+                    } //# getOptions
+
+
+                    //# Sets the oCache entry for the passed _element
+                    //#     TODO: Move to under $baseServices?
+                    function setCache(_element, sCSS, sTag, _link) {
+                        var bIsStyleAttribute = (sTag === "*"),
+                            _originalElement = _link || _element
+                        ;
+
+                        //# Setup the oCache entry for this _element
+                        //#     NOTE: .scripts are not allowed in style attributes, nor are inline-defined options hence the bIsStyleAttribute ternary logic
+                        oCache[_originalElement.id] = {
+                            link: _link || null,
+                            dom: _element,
+                            tag: sTag,
+                            options: getOptions(_originalElement, bIsStyleAttribute ? "" : sCSS),
+                            scripts: (bIsStyleAttribute ? null : $baseServices.getScripts(sCSS, _originalElement)),
+                            //data: optionallySetBelow,
+                            //evaler: setBelow,
+
+                            //# Implicitly removes and leading/training CSS comments from the .d(elimiter)1/.d(elimiter)2
+                            //#     NOTE: In Angular, the .d(elimiter)1/.d(elimiter)2 are hard-set from $interpolate.startSymbol/.endSymbol
+                            css: (sCSS || "").replace(reScript, "").replace(reD1, oPrelimOptions.d1).replace(reD2, oPrelimOptions.d2)
+                        };
+                    } //# setCache
+
+
+                    //# Processes the .scope to (re)set the .evaler
+                    function getEvaler(oCacheEntry, bSubsequentCall) {
+                        var vParent,
+                            oScope = $baseServices.scope.resolve(oCacheEntry, oPrelimOptions, optionEvaler),
+                            sScope = oScope.s,
+                            bSetEvaler = false,
+                            bRecursed = false
+                        ;
+
+                        //# Sets the .evaler entry into the oCacheEntry
+                        //#     NOTE: oCacheEntry, oScope.c(context) and bSetEvaler are used from the outer scope
+                        function setCacheEvaler(oParentCacheEntry, sScope, sRunScope, fnEval) {
+                            var a_sScripts = oCacheEntry.scripts || [],
+                                iRun = 0 //# Default iRun to 0 so nothing is fnEval'ed by default
+                            ;
+
+                            //# Flip bSetEvaler
+                            bSetEvaler = true;
+
+                            //# If the oCacheEntry has .scripts to .run
+                            if (a_sScripts.length > 0) {
+                                //# Safely collect the sRunScope's first character then reset iRun based on the sRunScope
+                                //#     NOTE: A sRunScope of "local" or "useStrict" require the .scripts to be .run on every call, hence the use of -1 (as a decremented -1 will never equal 0) while any other sRunScope requires only a single .run, hence 1 (which once decremented is equal to 0 and therefore not .run again)
+                                //#     NOTE: Set use sRunScope.length rather than 1 below to catch any instances where sRunScope is passed as undefined (and therefore or'ed into "")
+                                sRunScope = (sRunScope || "").substr(0, 1);
+                                iRun = (sRunScope === "l" || sRunScope === "u" ? -1 : sRunScope.length);
+                            }
+
+                            //# Set the .evaler entry in the oCacheEntry
+                            oCacheEntry.evaler = {
+                                parent: oParentCacheEntry,
+                                scope: sScope,
+                                context: oScope.c,
+                                $eval: fnEval,
+                                run: iRun
+                            };
+                        } //# setCacheEvaler
+
+                        //# If we are .go to .getEvaler
+                        if (oScope.go) {
+                            //# If we haven't ended up with a valid sScope after .scope.resolve's processing
+                            if (!$baseServices.is.str(sScope)) {
+                                //# If this is a bSubsequentCall, .warn the user
+                                //#      NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
+                                if (bSubsequentCall) {
+                                    $baseServices.warn("Invalid scope `" + sScope + "` for", _element, sScope);
+                                }
+                            }
+                                //# Else if the .evaler hasn't been set yet, if the sScope has changed or if the .c(ontext) has changed
+                            else if (!oCacheEntry.evaler || oCacheEntry.evaler.scope !== sScope || oCacheEntry.evaler.context !== oScope.c) {
+                                //# If this is an non-related sScope
+                                if (sScope.substr(0, 1) !== "#") {
+                                    //# If the sScope defines a valid interface under the .evalFactory, .setCacheEvaler
+                                    if ($baseServices.is.fn($baseServices.evalFactory[sScope])) {
+                                        //# If this is a .sandbox request, create a new $iframe
+                                        if (sScope === "sandbox") {
+                                            //oScope.c = $baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/);
+                                            // neek
+                                            setCacheEvaler(null, sScope, sScope, $baseServices.evalFactory[sScope]($baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/)).global());
+                                        }
+                                            //# neek
+                                        else {
+                                            setCacheEvaler(null, sScope, sScope, $baseServices.evalFactory[sScope](oScope.c));
+                                        }
+                                    }
+                                        //# Else the sScope is not a valid interface, so if this is a bSubsequentCall .warn the user
+                                        //#     NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
+                                    else if (bSubsequentCall) {
+                                        $baseServices.warn("Invalid evaler `" + sScope + "` for", oCacheEntry.dom);
+                                    }
+                                }
+                                    //# Else the sScope is denoting a DOM ID
+                                else {
+                                    //# Try to pull our vParent from the oCache
+                                    vParent = oCache[sScope.substr(1)];
+
+                                    //# If we found our vParent, .setCacheEvaler
+                                    if (vParent) {
+                                        setCacheEvaler(vParent, sScope, vParent.evaler.scope, vParent.evaler.$eval); //# TODO: .evaler is null/blank
+                                    }
+                                        //# Else we need to bRecursed to .compile our vParent
+                                    else {
+                                        //# If we can find our vParent in the _document, flip bRecursed then, you know... recurse
+                                        vParent = _document.getElementById(sScope.substr(1));
+                                        if (vParent) {
+                                            bRecursed = true;
+
+                                            //# Recurse to .compile our vParent, passing in our own fnCallback
+                                            $baseServices.compile(vParent, oPrelimOptions, fnOptionEvaler,
+                                                function (oParentCacheEntry, a__AddedElements) {
+                                                    //# If our oParentCacheEntry .is.obj, .setCacheEvaler
+                                                    //#     NOTE: Any errors with .compile'ing our vParent are .warn'd by .compile so no need for another .warn here
+                                                    if ($baseServices.is.obj(oParentCacheEntry)) {
+                                                        setCacheEvaler(oParentCacheEntry, sScope, oParentCacheEntry.evaler.scope, oParentCacheEntry.evaler.$eval);
+                                                    }
+
+                                                    //# Now that our oCacheEntry is fully configured (+/-oParentCacheEntry), we can fnCallback (.concat'ing the a__AddedElements into our own a__Elements as we go)
+                                                    fnCallback(oCacheEntry, a__Elements.concat(a__AddedElements));
+
+                                                    //# If we have an entry in oCallOnComplete, call it now
+                                                    if ($baseServices.is.fn(oCallOnComplete[sID])) {
+                                                        oCallOnComplete[sID]();
+                                                    }
+                                                }
+                                            );
+                                        }
+                                            //# Else the DOM ID in the sScope isn't present in the _document, so .warn
+                                        else {
+                                            $baseServices.warn("Unknown parent `" + sScope + "` for", _element /*, undefined*/);
+                                        }
+                                    }
+                                }
+                            }
+                                //# Else we have an up-to-date .evaler so flip bSetEvaler as there is no need to reset it below
+                            else {
+                                bSetEvaler = true;
+                            }
+                        }
+
+                        //# If we didn't bSetEvaler above, do it now as a null-entry
+                        if (!bSetEvaler) {
+                            setCacheEvaler(/*undefined, "", "", undefined*/);
+                        }
+
+                        //# If we haven't bRecursed, we can fnCallback now that our oCacheEntry is fully configured
+                        if (!bRecursed) {
+                            fnCallback(oCacheEntry, a__Elements);
+
+                            //# If we have an entry in oCallOnComplete, call it now
+                            if ($baseServices.is.fn(oCallOnComplete[sID])) {
+                                oCallOnComplete[sID]();
+                            }
+                        }
+                    } //# getEvaler
+
+
+                    //####################
+                    //# "Procedural" code
+                    //####################
+                    //# Collect the sID (while ensuring the _element has an .id)
+                    sID = _element.id = _element.id || $baseServices.newId();
+
+                    //# If we already have a oCache entry, send it into getEvaler to optionally reset our .evaler
+                    if (oCache[sID]) {
+                        getEvaler(oCache[sID], true);
+                    }
+                        //# Else we need to build the oCache entry for this _element
+                    else {
+                        //# Determine the .tagName and process accordingly
+                        switch (_element.tagName.toLowerCase()) {
+                            case "style": {
+                                //# .setCache for this STYLE tag then remove the CSS from the _element
+                                //#     NOTE: We remove the CSS so we avoid issues with partial styles and (in Angular) double processing of {{vars}}
+                                setCache(_element, _element.innerHTML, "s" /*, undefined*/);
+                                _element.innerHTML = "";
+                                break;
+                            }
+                            case "link": {
+                                bIsLink = true;
+
+                                //# .get the file contents from the CSS file
+                                $baseServices.get(_element.href,
+                                    //# .getOptions for our _element (collecting only the .a(ttribute)), .optionEvaler it then safely .resolve its .async setting (if any) or fallback to oPrelimOptions's .async
+                                    $baseServices.resolve(optionEvaler(getOptions(_element /*, ""*/).a), "async") || oPrelimOptions.async,
+
+                                    //# fnCallback
+                                    function (bSuccess, sCSS /*, $xhr*/) {
+                                        //# If the .get was a bSuccess
+                                        if (bSuccess) {
+                                            var _style = _document.createElement('style');
+                                            _style.appendChild(_document.createTextNode('')); //# WebKit hack
+
+                                            //# Setup the oCache entry for the new _style _element
+                                            //#     NOTE: .setCache needs to be called prior to replacing the LINK _element with the new _style
+                                            setCache(_style, sCSS, "l", _element);
+
+                                            //# Setup the new _style
+                                            //#     NOTE: .innerHTML is set by the external managers on update, so there is no need to set it below
+                                            _style.type = "text/css"; //# _style.setAttribute("type", "text/css");
+                                            _style.setAttribute(oCache[sID].options.attr, oCache[sID].options.a);
+                                            //_style.innerHTML = sCSS;
+
+                                            //# Replace the LINK _element with the new _style, then reset _element and copy across the .id
+                                            _element.parentNode.replaceChild(_style, _element);
+                                            _element = _style;
+                                            _style.id = sID;
+
+                                            //# Now send the oCache entry into .getEvaler
+                                            //#     NOTE: This is called here as oPrelimOptions.async may have been true, so we always call it here to avoid any/all .async issues
+                                            getEvaler(oCache[sID] /*, false*/);
+                                        }
+                                            //# Else the call failed, so .warn and call the fnCallback ourselves (sending in undefined/a__Elements)
+                                            //#     NOTE: If !bSuccess, then sCSS holds the error info
+                                            //#     NOTE: We do not call a oCallOnComplete entry below as the call failed
+                                        else {
+                                            $baseServices.warn("Error retrieving `" + _element.href + "` for", _element, sCSS);
+                                            fnCallback(undefined, a__Elements);
+                                        }
+                                    }
+                                );
+                                break;
+                            }
+                            default: {
+                                //# .setCache for this _element (collecting the .css from the STYLE tag) then remove the style attribute from our _element
+                                //#     NOTE: We remove the CSS so we avoid issues with partial styles and (in Angular) double processing of {{vars}}
+                                setCache(_element, _element.getAttribute("style"), "*" /*, undefined*/);
+                                _element.removeAttribute("style");
+                            }
+                        } //# switch
+
+                        //# So long as this is not a bIsLink (which calls .getEvaler above), send the oCache entry into .getEvaler
+                        if (!bIsLink) {
+                            getEvaler(oCache[sID] /*, false*/);
+                        }
+                    }
+                }, //# $baseServices.compile
+
+
+                //# Extends the passed oTarget with the additionally passed N objects
+                //#     NOTE: Right-most object (last argument) wins
+                //#     NOTE: We do not take jQuery's .extend because this implementation of .extend always does a deep copy
+                extend: function (oTarget) {
+                    var i, sKey;
+
+                    //# Ensure the passed oTarget is an object
+                    oTarget = ($baseServices.is.obj(oTarget) ? oTarget : {});
+
+                    //# Traverse the N passed arguments, appending/replacing the values from each into the oTarget (recursing on .is.obj)
+                    //#     NOTE: i = 1 as we are skipping the oTarget
+                    for (i = 1; i < arguments.length; i++) {
+                        if ($baseServices.is.obj(arguments[i])) {
+                            for (sKey in arguments[i]) {
+                                if (arguments[i].hasOwnProperty(sKey)) {
+                                    oTarget[sKey] = ($baseServices.is.obj(arguments[i][sKey]) ?
+                                        $baseServices.extend(oTarget[sKey], arguments[i][sKey]) :
+                                        arguments[i][sKey]
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    //# For convenience, return the oTarget to the caller (to allow for `objX = $service.js.extend({}, obj1, obj2)`-style calls)
+                    return oTarget;
+                }, //# extend
+
+
+                //# Evaluate in scope
+                //#     NOTE: Allows for Injection logic
+                //$eval: function(sID, vJS) {
+                //    var oCacheEntry = oCache[sID];
+                //    
+                //    //# 
+                //    if (oCacheEntry) {
+                //        // oInject = { $scope: $scope, scope: $scope }
+                //        return oCacheEntry.evaler.$eval(vJS, oCacheEntry.inject, true);
+                //    }
+                //},
+
+
+                //# Wrapper for a GET AJAX call
+                get: function (sUrl, bAsync, vCallback) {
+                    /* global ActiveXObject: false */ //# JSHint "ActiveXObject variable undefined" error supressor
+                    var $xhr,
+                        XHRConstructor = (XMLHttpRequest || ActiveXObject)
+                    ;
+
+                    //# IE5.5+ (ActiveXObject IE5.5-9), based on http://toddmotto.com/writing-a-standalone-ajax-xhr-javascript-micro-library/
+                    try {
+                        $xhr = new XHRConstructor('MSXML2.XMLHTTP.3.0');
+                    } catch (e) { }
+
+                    //# If a function was passed rather than an object, object-ize it (else we assume it's an object with at least a .fn)
+                    if ($baseServices.is.fn(vCallback)) {
+                        vCallback = { fn: vCallback, arg: null };
+                    }
+
+                    //# If we were able to collect an $xhr object
+                    if ($xhr) {
+                        //# Setup the $xhr callback
+                        //$xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+                        $xhr.onreadystatechange = function () {
+                            //# If the request is finished and the .responseText is ready
+                            if ($xhr.readyState === 4) {
+                                vCallback.fn(
+                                    ($xhr.status === 200 || ($xhr.status === 0 && sUrl.substr(0, 7) === "file://")),
+                                    $xhr.responseText,
+                                    vCallback.arg,
+                                    $xhr
+                                );
+                            }
+                        };
+
+                        //# GET the sUrl
+                        $xhr.open("GET", sUrl, bAsync);
+                        $xhr.send();
+                    }
+                        //# Else we were unable to collect the $xhr, so signal a failure to the vCallback.fn
+                    else {
+                        vCallback.fn(false, null, vCallback.arg, $xhr);
+                    }
+                }, //# $baseServices.get
+
+
+                //# Collects the SCRIPT blocks within the passed sCSS, returning the eval stack
+                getScripts: function (sCSS, _element) {
+                    var a_sSrc, i,
+                        a_sReturnVal = (sCSS || "").match(reScript) || [],
+                        reDeScript = /<[\/]?script.*?>/gi,
+                        reScriptSrc = /<script.*?src=['"](.*?)['"].*?>/i,
+                        fnCallback = function (bSuccess, sJS, oData) {
+                            a_sReturnVal[oData.i] = (bSuccess ? sJS : "");
+
+                            //# If we were not successful, .warn the user
+                            //#      NOTE: If !bSuccess, then sJS holds the error info
+                            if (!bSuccess) {
+                                $baseServices.warn("Error retrieving `" + oData.src + "` for", _element, sJS);
+                            }
+                        }
+                    ;
+
+                    //# Traverse the extracted SCRIPT tags from the .css (if any)
+                    for (i = 0; i < a_sReturnVal.length; i++) {
+                        a_sSrc = reScriptSrc.exec(a_sReturnVal[i]);
+
+                        //# If there is an a_sSrc in the SCRIPT tag, .get the resulting js synchronously (hence `false`, as order of SCRIPTs matter)
+                        //#     TODO: Try to make this async-able, but would need to promise this interface to accomplish
+                        if (a_sSrc && a_sSrc[1]) {
+                            $baseServices.get(a_sSrc[1], false, {
+                                fn: fnCallback,
+                                arg: {
+                                    i: i,
+                                    src: a_sSrc[1]
+                                }
+                            });
+                        }
+                            //# Else this is an inline SCRIPT tag, so load the reDeScript'd code into the a_sReturnVal eval stack
+                        else {
+                            a_sReturnVal[i] = a_sReturnVal[i].replace(reDeScript, "");
+                        }
+                    }
+
+                    //# Return our a_sReturnVal to the caller
+                    return a_sReturnVal;
+                }, //# $baseServices.getScripts
+
+
+                //# .hasAttribute Polyfill for IE8-
+                hasAttribute: function (s) {
+                    return typeof this[s] !== 'undefined';
+                }, //# $baseServices.hasAttribute
+
+
+                //# Datatype checking functionality
+                is: {
+                    str: function (s) {
+                        //# NOTE: This function also treats a 0-length string (null-string) as a non-string
+                        return ((typeof s === 'string' || s instanceof String) && s !== ''); //# was: (typeof s === 'string' || s instanceof String);
+                    },
+                    fn: function (f) {
+                        return (_Object_prototype_toString.call(f) === '[object Function]');
+                    },
+                    obj: function (o) {
+                        return (o && o === Object(o) && !$baseServices.is.fn(o));
+                    },
+                    arr: function (a) {
+                        return (_Object_prototype_toString.call(a) === '[object Array]');
+                    },
+                    dom: function (x) {
+                        return (x && $baseServices.is.str(x.tagName) && $baseServices.is.fn(x.getAttribute));
+                    },
+                    jq: function (x) {
+                        return (x && $baseServices.is.fn(x.replaceWith) && $baseServices.is.dom(x[0]));
+                    }
+                }, //# $baseServices.is
+
+
+                //# Transforms the passed object into an inline CSS string when vSelector is falsey (e.g. `color: red;`) or into CSS entry when vSelector is truthy (e.g. `selector { color: red; }`), where object._selector or vSelector is used for the selector
+                mixin: function (oObj, vSelector, bCrLf) {
+                    var sReturnVal = "",
+                        sCrLf = (bCrLf ? "\n" : "")
+                    ;
+
+                    //# Transforms the passed object into an inline CSS string (e.g. `color: red;\n`)
+                    //#     NOTE: This function recurses if it finds an object
+                    function toCss(oObj, sCrLf) {
+                        var sKey, vEntry,
+                            sReturnVal = ""
+                        ;
+
+                        //# Traverse the oObj
+                        for (sKey in oObj) {
+                            //# So long as this is a .hasOwnProperty and is not a ._selector
+                            if (oObj.hasOwnProperty(sKey) && sKey !== "_selector") {
+                                vEntry = oObj[sKey];
+
+                                //# Transform the sKey from camelCase to dash-case (removing the erroneous leading dash if it's there)
+                                sKey = sKey.replace(/([A-Z])/g, '-$1').toLowerCase();
+                                sKey = (sKey.indexOf("-") === 0 ? sKey.substr(1) : sKey);
+
+                                //# If this vEntry .is.obj(ect), recurse toCss() the sub-obj
+                                if ($baseServices.is.obj(vEntry)) {
+                                    sReturnVal += toCss(vEntry, sCrLf);
+                                }
+                                    //# Else we assume this is a string-able based vEntry
+                                else {
+                                    sReturnVal += sKey + ":" + vEntry + ";" + sCrLf;
+                                }
+                            }
+                        }
+
+                        return sReturnVal;
+                    }
+
+
+                    //# If the passed oObj .is.obj, we need to reset our sReturnVal
+                    if ($baseServices.is.obj(oObj)) {
+                        sReturnVal = (vSelector ? ($baseServices.is.str(vSelector) ? vSelector : oObj._selector) + " {" : "") + sCrLf +
+                            toCss(oObj, sCrLf) + sCrLf +
+                            (vSelector ? "}" : "")
+                        ;
+                    }
+                        //# Else if the passed oObj .is.str, then we have a selector-style request
+                    else if ($baseServices.is.str(oObj)) {
+
+                    }
+
+                    return sReturnVal;
+                }, //# $baseServices.mixin
+
+
+                //# Returns an unused HTML ID
+                //#     NOTE: Use the following snipit to ensure a DOM _element has an .id while still collecting the sID: `sID = _element.id = _element.id || $baseServices.newId();`
+                //#     NOTE: sPrefix must begin with /A-Za-z/ to be HTML4 compliant (see: http://stackoverflow.com/questions/70579/what-are-valid-values-for-the-id-attribute-in-html)
+                newId: function (sPrefix) {
+                    var sReturnVal;
+
+                    //# Ensure a sPrefix was passed
+                    sPrefix = sPrefix || $baseServices.config.attr + "_";
+
+                    //# Do while our sReturnVal exists as a DOM ID in the _document, try to find a unique ID returning the first we find
+                    //#     NOTE: sReturnVal is not re-declared on each loop as the var is hoisted
+                    do {
+                        sReturnVal = sPrefix + Math.random().toString(36).substr(2, 5);
+                    } while (_document.getElementById(sReturnVal));
+
+                    return sReturnVal;
+                }, //# $baseServices.newId
+
+
+                //# Safely resolves the passed sPath within the passed oObject, returning undefined if the sPath is not located
+                //#     NOTE: To default a value, use the following snipit: `var v = $baseServices.resolve({}, 'some.path') || 'default value';`
+                resolve: function (oObject, sPath) {
+                    var a_sPath, i;
+
+                    //# Since we reuse the passed oObject as our return value, reset it to undefined if it's not .is.obj
+                    oObject = ($baseServices.is.obj(oObject) ? oObject : undefined);
+
+                    //# If the passed oObject .is.obj and sPath .is.str, .split sPath into a_sPath
+                    if (oObject && $baseServices.is.str(sPath)) {
+                        a_sPath = sPath.split(".");
+
+                        //# Traverse the a_sPath, resetting the oObject to the value present at the current a_sPath or undefined if it's not present (while falling from the loop)
+                        for (i = 0; i < a_sPath.length; i++) {
+                            if ($baseServices.is.obj(oObject) && a_sPath[i] in oObject) {
+                                oObject = oObject[a_sPath[i]];
+                            } else {
+                                oObject = undefined;
+                                break;
+                            }
+                        }
+                    }
+
+                    return oObject;
+                }, //# $baseServices.resolve
+
+
+                //# Javascript Scope and Context resolution service used within .compile
+                scope: {
+                    //# Recursively resolves the .s(cope) and .c(ontext) for the passed oCacheEntry
+                    resolve: function (oCacheEntry, oPrelimOptions, fnOptionEvaler) {
+                        var sScopeAlias = $baseServices.config.scopeAlias,  //# code-golf
+                            oReturnVal = $baseServices.scope.$(             //# Build the object (collecting the .s(cope)) and pass it into the rescurive $ function
+                                {
+                                    //c: undefined,
+                                    s: $baseServices.resolve(fnOptionEvaler(oCacheEntry.options.a), sScopeAlias) || oPrelimOptions[sScopeAlias],
+                                    go: true
+                                },
+                                oCacheEntry
+                            )
+                        ;
+
+                        //# If a .c(ontext) has been passed and we are not a local or usestrict .s(cope), .warn the user
+                        if (oReturnVal.c) {
+                            switch (oReturnVal.s.toLowerCase()) {
+                                case "local":
+                                case "usestrict": {
+                                    break;
+                                }
+                                default: {
+                                    $baseServices.warn("Context cannot be used with `" + oReturnVal.s + "`", oCacheEntry.dom);
+                                    //break;
+                                }
+                            }
+                        }
+
+                        return oReturnVal;
+                    },
+
+                    //# Default implementation of the hook called during recursion
+                    hook: function (oData) { return oData; },
+
+                    //# Rescursive resolver
+                    $: function (oData, oCacheEntry) {
+                        //# If the .s(cope) .is.fn, call it with the oCacheEntry while resetting .s(cope) to its result
+                        if ($baseServices.is.fn(oData.s)) {
+                            oData.s = $baseServices.callOptionFn(oData.s, oCacheEntry);
+                        }
+
+                        //# If the .s(cope) .is.obj
+                        if ($baseServices.is.obj(oData.s)) {
+                            //# If .s(cope) .is.jq, extract the first DOM element (so it's caught below by .is.dom), else leave it as-is
+                            oData.s = ($baseServices.is.jq(oData.s) ? oData.s[0] : oData.s);
+
+                            //# If .s(cope) is a DOM element, collect its .id (while ensuring it has one) as a #selector
+                            if ($baseServices.is.dom(oData.s)) {
+                                oData.s.id = oData.s.id || $baseServices.newId();
+                                oData.s = '#' + oData.s.id;
+                            }
+                                //# Else if .s(cope) is a .context definition, set .c(ontext) and reset .s(cope) accordingly
+                                //#     NOTE: This can result in some funky behavior if the .scope defines an [object] or [function] that (eventually) returns an [object] as the last defined .context will win
+                            else if ($baseServices.config.scopeAlias in oData.s && 'context' in oData.s) {
+                                oData.c = oData.s.context;
+                                oData.s = oData.s[$baseServices.config.scopeAlias];
+                            }
+                                //# Else .s(cope) is a plain old Javascript object, so set oContext and reset .s(cope) to 'local'
+                            else {
+                                oData.c = oData.s;
+                                oData.s = 'local';
+                            }
+                        }
+
+                        //# Before recursing or returning, call the .hook
+                        //#     NOTE: This enables implementation-specific .s(cope) and .c(ontext) decoding (such as accessing the surrounding $scope in ngCss)
+                        oData = $baseServices.scope.hook(oData);
+
+                        //# If the .s(cope) is a recursive type, recurse now to recalculate the .s(cope)
+                        if ($baseServices.is.obj(oData.s) || $baseServices.is.fn(oData.s)) {
+                            oData = $baseServices.scope.$(oData, oCacheEntry);
+                        }
+
+                        return oData;
+                    }
+                }, //# scope
+
+
+                //# Safely warns the user on the console
+                warn: function (sMessage, _element, vError) {
+                    var c = console || function () { }; //# code-golf
+                    (c.warn || c.log || c)($baseServices.config.attr + ": " + sMessage, _element, vError);
+                } //# $baseServices.warn
+            } //# $baseServices
+        ;
+
+
+        //####################
+        //# "Procedural" code
+        //####################
+        //# Build the passed fnEvalerFactory
+        //#     NOTE: The fnLocalEvaler is specifically placed outside of the "use strict" block to allow for the local eval calls below to persist across eval'uations
+        $baseServices.evalFactory = fnEvalerFactory(_window, _document, $baseServices, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory);
+
+        //# Now that we have everything orchestrated, run the fnImplementation functionality
+        fnImplementation($baseServices);
     },
+
     //# <EvalerJS>
     //# fnEvalerFactory function. Base factory for the evaler logic
     function (_window, _document, $services, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory) {
         "use strict";
 
         var fnJSONParse,
+            sVersion = "v0.9f",
             fnGlobalEvaler = null
         ;
 
@@ -1124,8 +1231,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             if (bCode) {
                 return sGetGlobalEval;
             }
-            //# Else if we haven't setup the fnGlobalEvaler yet, do so now
-            //#     NOTE: A function defined by a Function() constructor does not inherit any scope other than the global scope (which all functions inherit), even though we are not using this paticular feature (as getGlobalEvaler gets the global version of eval)
+                //# Else if we haven't setup the fnGlobalEvaler yet, do so now
+                //#     NOTE: A function defined by a Function() constructor does not inherit any scope other than the global scope (which all functions inherit), even though we are not using this paticular feature (as getGlobalEvaler gets the global version of eval)
             else if (fnGlobalEvaler === null) {
                 fnGlobalEvaler = new Function(sGetGlobalEval)();
             }
@@ -1159,7 +1266,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             for (p in o) if (Object.prototype.hasOwnProperty.call(o, p)) k.push(p);
                             return k;
                         };
-                        
+
                         //# As this is either a fnLocalEvaler or fnUseStrictEvaler, we need to let them traverse the .js and non-oContext oInject'ions, so call them accordingly
                         //#     NOTE: oReturnVal is updated byref, so there is no need to collect a return value
                         if (bInContext) {
@@ -1179,7 +1286,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                 }
                             }
                         }
-                        
+
                         //# Traverse the .js, .pushing each fnEval .results into our oReturnVal (optionally .call'ing bInContext if necessary as we go)
                         for (i = 0; i < oReturnVal.js.length; i++) {
                             try {
@@ -1248,8 +1355,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             fnReturnValue = looperFactory(fnEvaler, _window/*, undefined, false*/);
                         }
                     }
-                    //# Else if the passed oContext has an .eval function (e.g. it's a window object)
-                    //#     NOTE: We Do some back flips with sEval below because strict mode complains about using .eval as it's a pseudo-reserved word, see: https://mathiasbynens.be/notes/reserved-keywords
+                        //# Else if the passed oContext has an .eval function (e.g. it's a window object)
+                        //#     NOTE: We Do some back flips with sEval below because strict mode complains about using .eval as it's a pseudo-reserved word, see: https://mathiasbynens.be/notes/reserved-keywords
                     else if ($services.is.fn(oContext[sEval])) {
                         //# Attempt to collect the foreign fnGlobalEvaler, then safely set it (or optionally the foreign fnLocalEvaler if we are to .f(allback)) into fnEvaler
                         fnEvaler = oContext[sEval]("(function(){" + getGlobalEvaler(true) + "})()");
@@ -1267,24 +1374,24 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     //}
                     break;
                 }
-                //# local
+                    //# local
                 case "l": {
                     fnReturnValue = looperFactory(fnLocalEvaler, _window, oContext, bContextPassed);
                     break;
                 }
-                //# "use strict"
+                    //# "use strict"
                 case "u": {
                     fnReturnValue = looperFactory(fnUseStrictEvaler, _window, oContext, bContextPassed);
                     break;
                 }
-                //# isolated
+                    //# isolated
                 case "i": {
                     //# Ensure the passed oConfig .is.obj, then build the IFRAME and collect its .contentWindow
                     //#     NOTE: We send null into .iframeFactory rather than "allow-scripts allow-same-origin" as browsers log a warning when this combo is set, and as this is simply an isolated (rather than a sandboxed) scope the code is trusted, but needs to have its own environment
                     oConfig = ($services.is.obj(oConfig) ? oConfig : {});
                     oConfig.iframe = iframeFactory(null, "" /*, undefined*/);
                     oConfig.window = oConfig.iframe.contentWindow;
-                    
+
                     //# Recurse to collect the isolated .window's fnEvaler (signaling to .f(allback) and that we are .r(ecursing))
                     fnEvaler = evalerFactory("g", oConfig.window, { f: 1, r: 1 });
 
@@ -1297,13 +1404,13 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                     // neek
                     //console.log("iframe made", oConfig);
-                    fnReturnValue = function(one, two, three) {
+                    fnReturnValue = function (one, two, three) {
                         //console.log("evalin!");
                         return fnReturnValue2(one, two, three);
                     };
                     break;
                 }
-                //# json
+                    //# json
                 case "j": {
                     //# JSON.parse never allows for oInject'ions nor a oContext, so never pass a oContext into the .looperFactory (which in turn locks out oInject'ions)
                     fnReturnValue = looperFactory(fnJSONParse/*, _window, undefined, undefined, false*/);
@@ -1315,6 +1422,15 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         } //# evalerFactory
 
 
+        //# Set our .version and .extend the passed $services with our own EvalerJS (evaler) logic
+        //#      NOTE: Setting up $services like this allows for any internal logic to be overridden as well as allows for all versions of CjsSS to coexist under a single definition (though some .conf logic would need to be used)
+        $services.version.evaler = sVersion;
+        $services.extend($services, {
+            evaler: {
+                iframeFactory: iframeFactory
+            }
+        });
+
         //# If the native JSON.parse is available, set fnJSONParse to it
         if (_window.JSON && _window.JSON.parse) {
             fnJSONParse = _window.JSON.parse;
@@ -1324,12 +1440,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             fnJSONParse = _window.jQuery.parseJSON;
         }
 
-        //# Export our iframeFactory into the passed $services
-        $services.iframeFactory = iframeFactory;
-
         //# Configure and return our return value
         return {
-            $version: $services.version,
+            $version: sVersion,
             global: function (bFallback, $window) {
                 return evalerFactory("g", $window || _window, { f: bFallback });
             },
@@ -1360,7 +1473,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 eval("var " + arguments[2].c + "=arguments[2].o[arguments[2].c];");
             }
         }
-        
+
         //# Ensure the passed i (aka arguments[1]) is 0
         //#     NOTE: i (aka arguments[1]) must be passed in as 0 ("bad assignment")
         //arguments[1] = 0;
@@ -1573,12 +1686,12 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     sandboxFactory($factories.iframe("allow-scripts", "" /*, undefined*/));
                     break;
                 }
-                //# If we were called with an $iframe
+                    //# If we were called with an $iframe
                 case 1: {
                     sandboxFactory(v1);
                     break;
                 }
-                //# If we were called with a sSandboxAttr, sURL and optional $domTarget
+                    //# If we were called with a sSandboxAttr, sURL and optional $domTarget
                 case 2:
                 case 3: {
                     sandboxFactory($factories.iframe(v1, v2, v3));
