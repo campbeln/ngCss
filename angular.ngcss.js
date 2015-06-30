@@ -1,5 +1,5 @@
 /*
-ngCss v0.9f (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9h (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
@@ -10,10 +10,12 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         'use strict';
 
         //# Setup the required "global" vars
-        var ngCss = "ngCss",
+        var $blankScope,
+            ngCss = "ngCss",
+            sNgEvalerKey = "ng",
             oModule = angular.module(ngCss, []),
             $ngCss = {
-                version: "v0.9f",
+                version: "v0.9h",
                 options: {
                     script: "isolated",
                     scope: "",
@@ -39,7 +41,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         //# Set our .version and .extend the passed $services with our own Angular (ng) logic then .conf(igure) the $services
         //#      NOTE: Setting up $services like this allows for any internal logic to be overridden as well as allows for all versions of CjsSS to coexist under a single definition (though some .conf logic would need to be used)
         $services.version[ngCss] = $ngCss.version;
-        angular.extend($services, {
+        $services.extend($services, {
             ng: {
                 //# Stub out the .factory and .directive interfaces (which are populated below)
                 //factory: null,
@@ -51,6 +53,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                 //# Configures the base $services object to work with the current implementation
                 conf: function () {
+                    var oConfig = $services.config; //# code-golf
+
                     //# Transforms the passed sCamelCase to dash-case (removing the erroneous leading dash if it's there)
                     function c2d(sCamelCase) {
                         var sDashCase = sCamelCase.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -58,10 +62,21 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     } //# c2d
 
 
-                    //# Set our .attr and .scopeAlias into the $services.config (so it can do error reporting and attribute processing correctly)
-                    $services.config.attr = c2d(ngCss);
-                    $services.config.scopeAlias = "script";
-                    $services.config.expandAttr = "{ $scopeAlias: '$attr', scope: '$attr' }";
+                    //# Set our $services.config options (so it can do error reporting and attribute processing correctly)
+                    //#     NOTE: We cannot simply pass in $blankScope.$eval as calling .$eval indirectly seems to detach it from it's $blankScope!? (not that it matters in this case)
+                    oConfig.attr = c2d(ngCss);
+                    oConfig.scopeAlias = "script";
+                    oConfig.expandAttr = "{ $scopeAlias: '$attr', scope: '$attr' }";
+                    oConfig.getEvaler = function (vScope) {
+                        return (vScope === sNgEvalerKey ?
+                            function (sCode) {
+                                $blankScope = $blankScope || $services.ng.factory.scope.$new({ isolate: true });
+
+                                return $blankScope.$eval(sCode);
+                            } :
+                            null
+                        );
+                    };
 
                     //# Rewire the $services.scope.hook functionality
                     $services.scope.hook = function (oData) {
@@ -74,7 +89,6 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     //# Before importing any external functionality, copy the original $service function references into .data.services
                     //#     NOTE: angular.extend does not do a deep copy, while .merge does but is v1.4+ - http://stackoverflow.com/questions/17242927/deep-merge-objects-with-angularjs, https://docs.angularjs.org/api/ng/function/angular.extend , https://docs.angularjs.org/api/ng/function/angular.merge
                     $ngCss.data.services = $services.extend({}, $services);
-
                 } //# conf
             }
         }); //# extend($services...
@@ -98,13 +112,13 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             //# Creates a new Angular $scope, optionally oMerge'ing the the passed object
             function newScope(oOptions) {
                 //# .extend the passed oOptions with the default values (while ensuring oOptions is an object)
-                oOptions = angular.extend({
+                oOptions = $services.extend({
                     isolate: false,
                     parent: $rootScope,
                     merge: null
                 }, oOptions);
 
-                return angular.extend($rootScope.$new(oOptions.isolate === true, oOptions.parent), oOptions.merge);
+                return $services.extend($rootScope.$new(oOptions.isolate === true, oOptions.parent), oOptions.merge);
             }
 
 
@@ -158,8 +172,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                 //# Extends our ngCss oDefaultOptions options with the passed oOptions while returning a copy of the oDefaultOptions
                 defaults: function (oOptions) {
-                    oDefaultOptions = angular.extend(oDefaultOptions, oOptions);
-                    return angular.extend({}, oDefaultOptions);
+                    oDefaultOptions = $services.extend(oDefaultOptions, oOptions);
+                    return $services.extend({}, oDefaultOptions);
                 }, //# defaults
 
 
@@ -226,49 +240,6 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         //#         options.script (default: false)         Specifies if <script> tags embedded within the CSS are to be executed. "local" specifies that the eval'uations will be done within an isolated closure with local scope, any other truthy value specifies that the eval'uations will be done within an isolated sandboxed enviroment with access only given to the $scope.
         //#         options.live (default: false)           Specifies if changes made within $scope are to be automatically reflected within the CSS.
         oModule.directive(ngCss, ['$interpolate', '$timeout', ngCss, function ($interpolate, $timeout, $ngCssFactory) {
-            var $blankScope = $ngCssFactory.scope.$new({ isolate: true });
-
-            //# Compiles the oOptions in effect for the passed oCacheEntry (if any) in the proper priority
-            function compileOptions(oCacheEntry, $evalScope, fnCallback) {
-                //# 
-                function processCacheOptions(oCacheOptions) {
-                    if (oCacheOptions) {
-                        if (oCacheOptions.a && !oCacheOptions.$a) { oCacheOptions.$a = $evalScope.$eval(oCacheOptions.a); }
-                        if (oCacheOptions.c && !oCacheOptions.$c) { oCacheOptions.$c = $evalScope.$eval(oCacheOptions.c); }
-                    }
-                } //# processCacheOptions
-
-                //# re-.compile the DOM version of the $element so we can (re-)resolve our .evaler and .scope
-                //#     NOTE: We cannot simply pass in $evalScope.$eval as calling .$eval indirectly seems to detach it from it's $evalScope!?
-                $services.compile(oCacheEntry.dom, oDefaultOptions,
-                    function (sCode) {
-                        return $evalScope.$eval(sCode);
-                    },
-                    //# fnCallback: implementation-specific .compile postprocessing logic
-                    function (oRecompiledCacheEntry /*, a__Elements*/) {
-                        var oParentOptions,
-                            $element = angular.element(oCacheEntry.dom)
-                        ;
-
-                        //# If this $element isn't a LINK/STYLE tag, we can re-add the ng-css attribute now that we're post $compile
-                        //#     NOTE: We really don't need to do this, but it is what the user expects to be in place so it's good practice
-                        //#     NOTE: This is the Yang to .compileCallback's Yin
-                        if (oRecompiledCacheEntry.tag === "*") {
-                            $element.attr(oRecompiledCacheEntry.options.attr, oRecompiledCacheEntry[ngCss]);
-                        }
-
-                        //# .resolve our oParentOptions (if any) then .processCacheOptions for both the oParentOptions and the oRecompiledCacheEntry
-                        oParentOptions = $services.resolve(oRecompiledCacheEntry, "evaler.parent.options") || {};
-                        processCacheOptions(oParentOptions);
-                        processCacheOptions(oRecompiledCacheEntry.options);
-
-                        //# Set our oReturnVal to the options in the proper priority order
-                        fnCallback(angular.extend({}, oDefaultOptions, oParentOptions.$c, oParentOptions.$a, oRecompiledCacheEntry.options.$c, oRecompiledCacheEntry.options.$a));
-                    }
-                );
-            } //# compileOptions
-
-
             //# Finalizes a .link call
             function finalizeLink(oCacheEntry, $scope, oCompiledOptions) {
                 var oResults,
@@ -281,7 +252,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 if (!$ngCssFactory.scope.is($scope)) {
                     $services.warn("Error collecting $scope for", oCacheEntry.dom, oCompiledOptions.scope);
                 }
-                    //# Else we have a valid $scope
+                //# Else we have a valid $scope
                 else {
                     //# Populate the oCacheEntry with the implementation-specific .data
                     oCacheEntry.data = {
@@ -331,7 +302,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             //# Update the oCacheEntry's CSS
             function updateCSS(oCacheEntry) {
                 try {
-                    var sProcessedCSS = oCacheEntry.data.$i(oCacheEntry.data.$s);
+                    var sProcessedCSS = oCacheEntry.data.$i(oCacheEntry.data.$s);   //# .$i = $interpolate function, .$s = $scope
 
                     //# If this is a non-LINK/STYLE entry set the sProcessedCSS into the style attribute
                     if (oCacheEntry.tag === "*") {
@@ -365,10 +336,11 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             } //# updateCSS
 
 
-            //# Reset the delimiters in our oDefaultOptions before sending them into .compile
+            //# Reset the delimiters and .optionScope in our oDefaultOptions before sending them into .compile
             //#     NOTE: This can be done once as this .directive exists at runtime only under a single angular instance
             oDefaultOptions.d1 = $interpolate.startSymbol();
             oDefaultOptions.d2 = $interpolate.endSymbol();
+            oDefaultOptions.optionScope = sNgEvalerKey;
 
             //# Populate the .$interpolate, .$timeout and the .directive structure under our $services, then return the .directive
             $services.ng.$interpolate = $interpolate;
@@ -384,6 +356,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 //        delete $attrs[ngCss];
                 //        delete $attrs.$attr[ngCss];
                 //    }
+                //
+                //    //# Return the .link function
+                //    return function (/*$scope, $element, $attrs, ngControllers*/) {};
                 //},
 
                 //# Compiles the oCache entry for each ng-css $element while scooping out the CSS before Angular processes it (so we avoid issues with double processing of {{vars}})
@@ -399,12 +374,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     }
 
                     //# .compile the DOM version of the $element, post-processing any non-LINK/STYLE tags (as this is the initial .compile)
-                    //#     NOTE: fnOptionEvaler uses the $blankScope to asertain the value of .async (if any)
-                    //#     NOTE: We cannot simply pass in $blankScope.$eval as calling .$eval indirectly seems to detach it from it's $blankScope!? (not that it matters in this case)
                     $services.compile($element[0], oDefaultOptions,
-                        function (sCode) {
-                            return $blankScope.$eval(sCode);
-                        },
                         //# fnCallback: implementation-specific .compile postprocessing logic
                         function (oCacheEntry /*, a__Elements*/) {
                             //# If this $element isn't a LINK/STYLE tag
@@ -423,71 +393,79 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                 link: function ($scope, $element /*, $attrs, $controllers*/) {
                     var sID = $element[0].id,
                         oCacheEntry = oCache[sID],
-                        fnDoLink = function () {
-                            //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
-                            compileOptions(
-                                oCacheEntry,
-                                $ngCssFactory.scope.outer($element) || $scope, //# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
-                                function (oCompiledOptions) {
-                                    //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
-                                    //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
-                                    var sScope = ($services.is.fn(oCompiledOptions.scope) ? $services.callOptionFn(oCompiledOptions.scope, oCacheEntry) : oCompiledOptions.scope),
-                                        bFinailize = true
-                                    ;
-
-                                    //# If the caller passed is a string
-                                    if ($services.is.str(sScope)) {
-                                        //# If this is an #ID specification, .scope.get (NOT bForce'ing a new $scope if we can't find one on the referenced #ID so we get the .warn below)
-                                        if (sScope.substr(0, 1) === "#") {
-                                            bFinailize = false;
-
-                                            //# Wait for every other directive to be setup before running our logic
-                                            $timeout(function () {
-                                                $scope = $ngCssFactory.scope.get(sScope /*, false*/);
-                                                oCacheEntry.foreignScope = $scope;
-                                                finalizeLink(oCacheEntry, $scope, oCompiledOptions);
-                                            });
-                                        }
-                                            //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
-                                        else if (sScope !== "parent") {
-                                            $scope = $ngCssFactory.scope.$new({ isolate: true });
-                                            oCacheEntry.foreignScope = $scope;
-                                        }
-                                    }
-                                    //# Else if we have a oParentCacheEntry
-                                    //#     NOTE: `evaler.parent` refers to the Javascript scope/heritage. The code below is no longer necessary as the user should address the parent Angular scope directly via #ParentID.
-                                    //else if (oParentCacheEntry) {
-                                    //    //# Collect the parent $scope (if any)
-                                    //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
-                                    //    oResults = $ngCssFactory.scope.get(oParentCacheEntry.dom /*, false*/);
-
-                                    //    //# If a parent $scope was found
-                                    //    if (oResults) {
-                                    //        //# Reset our $scope and oCache it under .foreignScope (for use in subsiquent .scope.get calls)
-                                    //        oCacheEntry.foreignScope = $scope = oResults;
-                                    //    }
-                                    //}
-
-                                    //# If we haven't bFinailize'd above, do so now
-                                    if (bFinailize) {
-                                        finalizeLink(oCacheEntry, $scope, oCompiledOptions);
-                                    }
-                                }
-                            );
-                        } //# fnDoLink
+                        $evalScope = $ngCssFactory.scope.outer($element) || $scope	//# Default $evalScope to our .scope.outer (if any, as we may or may not be using our isolate $scope)
                     ;
 
+                    function doLink() {
+                        //# Now that we have an $evalScope, reset the .ovaler
+                        //#     NOTE: We cannot simply pass in $evalScope.$eval as calling .$eval indirectly seems to detach it from it's $evalScope!?
+                        oCacheEntry.ovaler = function (sCode) {
+                            return $evalScope.$eval(sCode);
+                        };                   
+                    
+                        //# Get the oCompiledOptions, collecting them in the passed fnCallback (as the .compile within .compileOptions may be .async)
+                        $services.compileOptions(
+                            oCacheEntry,
+                            oDefaultOptions,
+                            function (oCompiledOptions) {
+                                //# Finalize the processing of the oCompiledOptions by running the .is.fn in .scope (if any)
+                                //#     NOTE: There is no need to have a hook for compileOptions to do this post-processing as a hook would be called directly prior to this fnCallback, so we might as well do it at the head of the fnCallback
+                                var sScope = ($services.is.fn(oCompiledOptions.scope) ? $services.callOptionFn(oCompiledOptions.scope, oCacheEntry) : oCompiledOptions.scope),
+                                    bFinailize = true
+                                ;
 
-                    //# If we successfully collected the oCacheEntry, call fnDoLink now
+                                //# If the caller passed is a string
+                                if ($services.is.str(sScope)) {
+                                    //# If this is an #ID specification, .scope.get (NOT bForce'ing a new $scope if we can't find one on the referenced #ID so we get the .warn below)
+                                    if (sScope.substr(0, 1) === "#") {
+                                        bFinailize = false;
+
+                                        //# Wait for the other directives to be setup before running our logic
+                                        $timeout(function () {
+                                            $scope = $ngCssFactory.scope.get(sScope /*, false*/);
+                                            oCacheEntry.foreignScope = $scope;
+                                            finalizeLink(oCacheEntry, $scope, oCompiledOptions);
+                                        });
+                                    }
+                                        //# Else if the caller didn't request the parent scope, create a .$new isolate $scope now
+                                    else if (sScope !== "parent") {
+                                        $scope = $ngCssFactory.scope.$new({ isolate: true });
+                                        oCacheEntry.foreignScope = $scope;
+                                    }
+                                }
+                                //# Else if we have a oParentCacheEntry
+                                //#     NOTE: `evaler.parent` refers to the Javascript scope/heritage. The code below is no longer necessary as the user should address the parent Angular scope directly via #ParentID.
+                                //else if (oParentCacheEntry) {
+                                //    //# Collect the parent $scope (if any)
+                                //    //#     NOTE: .scope.get will return any $scope in effect for the oParentCacheEntry, but since we have a falsey bForce, it will come back as undefined if there is no $scope (leaving our isolate $scope in-place)
+                                //    oResults = $ngCssFactory.scope.get(oParentCacheEntry.dom /*, false*/);
+
+                                //    //# If a parent $scope was found
+                                //    if (oResults) {
+                                //        //# Reset our $scope and oCache it under .foreignScope (for use in subsiquent .scope.get calls)
+                                //        oCacheEntry.foreignScope = $scope = oResults;
+                                //    }
+                                //}
+
+                                //# If we haven't bFinailize'd above, do so now
+                                if (bFinailize) {
+                                    finalizeLink(oCacheEntry, $scope, oCompiledOptions);
+                                }
+                            }
+                        );
+                    } //# doLink
+
+
+                    //# If we successfully collected the oCacheEntry, call doLink now
                     if (oCacheEntry) {
-                        fnDoLink();
+                        doLink();
                     }
-                        //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in fnDoLink as a .c(all)o(n)c(omplete)
+                    //# Else oCacheEntry doesn't exist yet (which means it's a LINK tag that's still being processed), so wire in doLink as a .c(all)o(n)c(omplete)
                     else {
                         $services.coc[sID] = function () {
                             $services.coc[sID] = null;
                             oCacheEntry = oCache[sID];
-                            fnDoLink();
+                            doLink();
                         };
                     }
                 } //# link
@@ -515,7 +493,8 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
         'use strict';
 
         //# Setup the required $baseServices
-        var oCache = {},
+        var $this = this,
+            oCache = {},
             oCallOnComplete = {},
             _Object_prototype_toString = Object.prototype.toString, //# code-golf
             //reScriptTag = /<[\/]?script.*?>/gi,
@@ -523,27 +502,43 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             $baseServices = {
                 version: {
                     //evaler: '',
-                    baseServices: 'v0.9f'
+                    baseServices: 'v0.9h'
                 },
-                cache: oCache,
-                coc: oCallOnComplete,
-
                 config: {
+                    //getEvaler: null,	//# function (sScope) { return function(vJS) { return eval(sJS); }; },
                     attr: '',
                     scopeAlias: 'scope',
                     expandAttr: "{ $scopeAlias: '$attr' }"
                 },
+                cache: oCache,
+                coc: oCallOnComplete,
+
+
+                //# Safely calls the passed fn (if it .is.fn) while .apply'ing the provided vArguments and vThis
+                callFn: function(fn, vArguments, vThis) {
+                    if ($baseServices.is.fn(fn)) {
+                        return fn.apply(
+                            vThis || $this,
+                            $baseServices.is.arr(vArguments) ? vArguments : [vArguments]
+                        );
+                    }
+                }, //# callFn
 
 
                 //# Calls option functions with the standard arguments
                 callOptionFn: function (fn, oCacheEntry) {
-                    return ($baseServices.is.fn(fn) ? fn(oCacheEntry.dom, oCacheEntry) : undefined);
+                    return $baseServices.callFn(fn, [oCacheEntry.dom, oCacheEntry], this);
                 },
 
 
                 //# Sets up the oCache entry for the passed _element
-                compile: function (_element, oPrelimOptions, fnOptionEvaler, fnCallback) {
-                    var sID,
+                compile: function (_element, oPrelimOptions, fnCallback) {
+                    var fnOptionEvaler, sID,
+                        oPseudoCacheEntry = {
+                            dom: _element,
+                            pseudo: true,
+                            ovaler: function(){}
+                        },
                         bIsLink = false,
                         a__Elements = [_element],
                         reD1 = new RegExp("/\\*" + oPrelimOptions.d1, "g"),
@@ -618,6 +613,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             //data: optionallySetBelow,
                             //evaler: setBelow,
 
+                            //# Set our .ovaler to the optionEvaler function above (so we benefit from its error handling)
+                            ovaler: optionEvaler,
+                            
                             //# Implicitly removes and leading/training CSS comments from the .d(elimiter)1/.d(elimiter)2
                             //#     NOTE: In Angular, the .d(elimiter)1/.d(elimiter)2 are hard-set from $interpolate.startSymbol/.endSymbol
                             css: (sCSS || "").replace(reScript, "").replace(reD1, oPrelimOptions.d1).replace(reD2, oPrelimOptions.d2)
@@ -625,10 +623,44 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     } //# setCache
 
 
+                    //# Resolves the passed oScope object into an evaler function
+                    function resolveEvalerFn(oScope, eMode, oCacheEntry, bRaiseError) {
+                        var fnReturnVal,
+                            sScope = oScope.s
+                        ;
+                    
+                        //# If the sScope defines a valid interface under the .evalFactory, use it to collect the fnCustomEvaler
+                        if ($baseServices.is.fn($baseServices.evalFactory[sScope])) {
+                            //# If this is a .sandbox request, create a new $iframe
+                            if (sScope === "sandbox") {
+                                //oScope.c = $baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/);
+                                // neek
+                                fnReturnVal = $baseServices.evalFactory[sScope]($baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/)).global();
+                            }
+                                //# neek
+                            else {
+                                fnReturnVal = $baseServices.evalFactory[sScope](oScope.c);
+                            }
+                        }
+                            //# Else if we have a valid .$getEvaler, use it to collect the fnCustomEvaler
+                        else if ($baseServices.is.fn($baseServices.config.getEvaler)) {
+                            fnReturnVal = $baseServices.config.getEvaler(sScope);
+                        }
+                        
+                        //# If the sScope is not a valid interface and this is a bRaiseError call, .warn the user
+                        //#     NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
+                        if (!$baseServices.is.fn(fnReturnVal) && bRaiseError) {
+                            $baseServices.warn("Invalid " + eMode + "valer `" + sScope + "` for", oCacheEntry.dom);
+                        }
+                        
+                        return fnReturnVal;
+                    } //# resolveEvalerFn
+
+
                     //# Processes the .scope to (re)set the .evaler
                     function getEvaler(oCacheEntry, bSubsequentCall) {
-                        var vParent,
-                            oScope = $baseServices.scope.resolve(oCacheEntry, oPrelimOptions, optionEvaler),
+                        var vParent, fnCustomEvaler,
+                            oScope = $baseServices.scope.resolve(oPrelimOptions, $baseServices.config.scopeAlias, oCacheEntry),
                             sScope = oScope.s,
                             bSetEvaler = false,
                             bRecursed = false
@@ -677,23 +709,12 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             else if (!oCacheEntry.evaler || oCacheEntry.evaler.scope !== sScope || oCacheEntry.evaler.context !== oScope.c) {
                                 //# If this is an non-related sScope
                                 if (sScope.substr(0, 1) !== "#") {
-                                    //# If the sScope defines a valid interface under the .evalFactory, .setCacheEvaler
-                                    if ($baseServices.is.fn($baseServices.evalFactory[sScope])) {
-                                        //# If this is a .sandbox request, create a new $iframe
-                                        if (sScope === "sandbox") {
-                                            //oScope.c = $baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/);
-                                            // neek
-                                            setCacheEvaler(null, sScope, sScope, $baseServices.evalFactory[sScope]($baseServices.evaler.iframeFactory("allow-scripts", "" /*, undefined*/)).global());
-                                        }
-                                            //# neek
-                                        else {
-                                            setCacheEvaler(null, sScope, sScope, $baseServices.evalFactory[sScope](oScope.c));
-                                        }
-                                    }
-                                        //# Else the sScope is not a valid interface, so if this is a bSubsequentCall .warn the user
-                                        //#     NOTE: We filter based on initial/bSubsequentCall because on the initial call we can be running before the sScope has been setup, so we allow it to pass
-                                    else if (bSubsequentCall) {
-                                        $baseServices.warn("Invalid evaler `" + sScope + "` for", oCacheEntry.dom);
+                                    //# Call resolveEvalerFn to collect the fnCustomEvaler
+                                    fnCustomEvaler = resolveEvalerFn(oScope, "e", oCacheEntry, bSubsequentCall);
+                                    
+                                    //# If we were able to collect a fnCustomEvaler, .setCacheEvaler
+                                    if ($baseServices.is.fn(fnCustomEvaler)) {
+                                        setCacheEvaler(null, sScope, sScope, fnCustomEvaler);
                                     }
                                 }
                                     //# Else the sScope is denoting a DOM ID
@@ -703,7 +724,11 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                                     //# If we found our vParent, .setCacheEvaler
                                     if (vParent) {
-                                        setCacheEvaler(vParent, sScope, vParent.evaler.scope, vParent.evaler.$eval); //# TODO: .evaler is null/blank
+                                        if ($baseServices.is.fn($baseServices.resolve(vParent, "evaler.$eval"))) {
+                                            setCacheEvaler(vParent, sScope, vParent.evaler.scope, vParent.evaler.$eval);
+                                        } else {
+                                            $baseServices.warn("Invalid evaler `" + sScope + "` for", oCacheEntry.dom);
+                                        }
                                     }
                                         //# Else we need to bRecursed to .compile our vParent
                                     else {
@@ -713,7 +738,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                             bRecursed = true;
 
                                             //# Recurse to .compile our vParent, passing in our own fnCallback
-                                            $baseServices.compile(vParent, oPrelimOptions, fnOptionEvaler,
+                                            $baseServices.compile(vParent, oPrelimOptions,
                                                 function (oParentCacheEntry, a__AddedElements) {
                                                     //# If our oParentCacheEntry .is.obj, .setCacheEvaler
                                                     //#     NOTE: Any errors with .compile'ing our vParent are .warn'd by .compile so no need for another .warn here
@@ -766,6 +791,17 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     //####################
                     //# Collect the sID (while ensuring the _element has an .id)
                     sID = _element.id = _element.id || $baseServices.newId();
+                    
+                    //# Resolve the fnOptionEvaler either from our oCache entry or via resolveEvalerFn
+                    fnOptionEvaler = (oCache[sID] ?
+                        oCache[sID].ovaler :
+                        resolveEvalerFn(
+                            $baseServices.scope.resolve(oPrelimOptions, "optionScope", oPseudoCacheEntry),
+                            "o",
+                            oPseudoCacheEntry,
+                            true
+                        )
+                    );
 
                     //# If we already have a oCache entry, send it into getEvaler to optionally reset our .evaler
                     if (oCache[sID]) {
@@ -841,6 +877,41 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                         }
                     }
                 }, //# $baseServices.compile
+
+
+                //# Compiles the oOptions in effect for the passed oCacheEntry (if any) in the proper priority
+                compileOptions: function(oCacheEntry, oPrelimOptions, fnCallback) {
+                    //# 
+                    function processCacheOptions(oCacheOptions) {
+                        if (oCacheOptions) {
+                            if (oCacheOptions.a && !oCacheOptions.$a) { oCacheOptions.$a = oCacheEntry.ovaler(oCacheOptions.a); }
+                            if (oCacheOptions.c && !oCacheOptions.$c) { oCacheOptions.$c = oCacheEntry.ovaler(oCacheOptions.c); }
+                        }
+                    } //# processCacheOptions
+
+                    //# re-.compile the DOM version of the $element so we can (re-)resolve our .evaler and .scope
+                    $baseServices.compile(oCacheEntry.dom, oPrelimOptions,
+                        //# fnCallback: implementation-specific .compile postprocessing logic
+                        function (oRecompiledCacheEntry /*, a__Elements*/) {
+                            var oParentOptions;
+
+                            //# If this $element isn't a LINK/STYLE tag, we can re-add the ng-css attribute now that we're post $compile
+                            //#     NOTE: We really don't need to do this, but it is what the user expects to be in place so it's good practice
+                            //#     NOTE: This is the Yang to .compileCallback's Yin
+                            if (oRecompiledCacheEntry.tag === "*") {
+                                oCacheEntry.dom.setAttribute(oRecompiledCacheEntry.options.attr, oRecompiledCacheEntry[$baseServices.config.attr]);
+                            }
+
+                            //# .resolve our oParentOptions (if any) then .processCacheOptions for both the oParentOptions and the oRecompiledCacheEntry
+                            oParentOptions = $baseServices.resolve(oRecompiledCacheEntry, "evaler.parent.options") || {};
+                            processCacheOptions(oParentOptions);
+                            processCacheOptions(oRecompiledCacheEntry.options);
+
+                            //# Set our oReturnVal to the options in the proper priority order
+                            fnCallback($baseServices.extend({}, oPrelimOptions, oParentOptions.$c, oParentOptions.$a, oRecompiledCacheEntry.options.$c, oRecompiledCacheEntry.options.$a));
+                        }
+                    );
+                }, //# compileOptions
 
 
                 //# Extends the passed oTarget with the additionally passed N objects
@@ -1103,23 +1174,34 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
 
                 //# Javascript Scope and Context resolution service used within .compile
+                //#     TODO: Debug neek
                 scope: {
                     //# Recursively resolves the .s(cope) and .c(ontext) for the passed oCacheEntry
-                    resolve: function (oCacheEntry, oPrelimOptions, fnOptionEvaler) {
-                        var sScopeAlias = $baseServices.config.scopeAlias,  //# code-golf
-                            oReturnVal = $baseServices.scope.$(             //# Build the object (collecting the .s(cope)) and pass it into the rescurive $ function
+                    resolve: function (oPrelimOptions, sTarget, oCacheEntry) {
+                        var sAttrOptions = $baseServices.resolve(oCacheEntry, "options.a"),
+                            oReturnVal = $baseServices.scope.$(	//# Build the object (collecting the .s(cope)) and pass it into the rescurive $ function
                                 {
                                     //c: undefined,
-                                    s: $baseServices.resolve(fnOptionEvaler(oCacheEntry.options.a), sScopeAlias) || oPrelimOptions[sScopeAlias],
+                                    
+                                    //s: ($baseServices.is.obj($attrOptions) ?
+                                    //    $baseServices.resolve($attrOptions, sTarget) :
+                                    //    0
+                                    //) || oPrelimOptions[sTarget],
+
+                                    //s: $baseServices.resolve(oCacheEntry, "options.$a." + sTarget) || oPrelimOptions[sTarget],
+
+                                    s: $baseServices.resolve(oCacheEntry.ovaler(sAttrOptions), sTarget) || oPrelimOptions[sTarget],
+                                    
                                     go: true
                                 },
+                                $baseServices.config.scopeAlias,
                                 oCacheEntry
                             )
                         ;
 
                         //# If a .c(ontext) has been passed and we are not a local or usestrict .s(cope), .warn the user
                         if (oReturnVal.c) {
-                            switch (oReturnVal.s.toLowerCase()) {
+                            switch ((oReturnVal.s || "").toLowerCase()) {
                                 case "local":
                                 case "usestrict": {
                                     break;
@@ -1138,7 +1220,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                     hook: function (oData) { return oData; },
 
                     //# Rescursive resolver
-                    $: function (oData, oCacheEntry) {
+                    $: function (oData, sScopeAlias, oCacheEntry) {
                         //# If the .s(cope) .is.fn, call it with the oCacheEntry while resetting .s(cope) to its result
                         if ($baseServices.is.fn(oData.s)) {
                             oData.s = $baseServices.callOptionFn(oData.s, oCacheEntry);
@@ -1156,9 +1238,9 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             }
                                 //# Else if .s(cope) is a .context definition, set .c(ontext) and reset .s(cope) accordingly
                                 //#     NOTE: This can result in some funky behavior if the .scope defines an [object] or [function] that (eventually) returns an [object] as the last defined .context will win
-                            else if ($baseServices.config.scopeAlias in oData.s && 'context' in oData.s) {
+                            else if (sScopeAlias in oData.s && 'context' in oData.s) {
                                 oData.c = oData.s.context;
-                                oData.s = oData.s[$baseServices.config.scopeAlias];
+                                oData.s = oData.s[sScopeAlias];
                             }
                                 //# Else .s(cope) is a plain old Javascript object, so set oContext and reset .s(cope) to 'local'
                             else {
@@ -1173,7 +1255,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                         //# If the .s(cope) is a recursive type, recurse now to recalculate the .s(cope)
                         if ($baseServices.is.obj(oData.s) || $baseServices.is.fn(oData.s)) {
-                            oData = $baseServices.scope.$(oData, oCacheEntry);
+                            oData = $baseServices.scope.$(oData, sScopeAlias, oCacheEntry);
                         }
 
                         return oData;
