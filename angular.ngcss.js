@@ -1,5 +1,5 @@
 /*
-ngCss v0.9i (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9j (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
@@ -14,7 +14,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             ngCss = "ngCss",
             oModule = angular.module(ngCss, []),
             $ngCss = {
-                version: "v0.9i",
+                version: "v0.9j",
                 options: {
                     script: "isolated",
                     scope: "",
@@ -466,7 +466,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
             $baseServices = {
                 version: {
                     //evaler: '',
-                    baseServices: 'v0.9i'
+                    baseServices: 'v0.9j'
                 },
                 config: {
                     //getEvaler: null,	//# function (sScope) { return function(vJS) { return eval(sJS); }; },
@@ -522,7 +522,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                     //# Sets up the oCache entry for the passed _element
                     element: function (_element, oPrelimOptions, fnCallback, bSurpressErrors) {
-                        var sID,
+                        var sID, sStyleTags,
                             bIsLink = false,
                             a__Elements = [_element]
                         ;
@@ -534,7 +534,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                         if (oCache[sID]) {
                             $baseServices.compile.setEvaler(oCache[sID], oPrelimOptions, fnCallback, a__Elements /*, false*/);
                         }
-                        //# Else we need to build the oCache entry for this _element
+                            //# Else we need to build the oCache entry for this _element
                         else {
                             //# Determine the .tagName and process accordingly
                             switch (_element.tagName.toLowerCase()) {
@@ -594,10 +594,14 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                     break;
                                 }
                                 default: {
-                                    //# .setCache for this _element (collecting the .css from the STYLE tag) then remove the style attribute from our _element
-                                    //#     NOTE: We remove the CSS so we avoid issues with partial styles and (in Angular) double processing of {{vars}}
-                                    $baseServices.compile.setCache(_element, oPrelimOptions, _element.getAttribute("style"), "*" /*, undefined*/);
-                                    _element.removeAttribute("style");
+                                    //# Compile the sStyleTags (data-ATTR-style, ATTR-style and plain ole'style) for this _element
+                                    sStyleTags = (_element.getAttribute($baseServices.config.attr + "-style") || "") +
+                                        (_element.getAttribute("data-" + $baseServices.config.attr + "-style") || "") +
+                                        (_element.getAttribute("style") || "")
+                                    ;
+
+                                    //# .setCache for this _element (collecting the .css from the STYLE tags)
+                                    $baseServices.compile.setCache(_element, oPrelimOptions, sStyleTags, "*" /*, undefined*/);
                                 }
                             } //# switch
 
@@ -696,7 +700,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                     $baseServices.warn("Invalid scope `" + sScope + "` for", _element, sScope);
                                 }
                             }
-                            //# Else if the .evaler hasn't been set yet, if the sScope has changed or if the .c(ontext) has changed
+                                //# Else if the .evaler hasn't been set yet, if the sScope has changed or if the .c(ontext) has changed
                             else if (!oCacheEntry.evaler || oCacheEntry.evaler.scope !== sScope || oCacheEntry.evaler.context !== oScope.c) {
                                 //# If this is an non-related sScope
                                 if (sScope.substr(0, 1) !== "#") {
@@ -755,7 +759,7 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                                     }
                                 }
                             }
-                            //# Else we have an up-to-date .evaler so flip bSetEvaler as there is no need to reset it below
+                                //# Else we have an up-to-date .evaler so flip bSetEvaler as there is no need to reset it below
                             else {
                                 bSetEvaler = true;
                             }
@@ -794,11 +798,11 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                             function (oRecompiledCacheEntry /*, a__Elements*/) {
                                 var oParentOptions;
 
-                                //# If this $element isn't a LINK/STYLE tag, we can re-add the ng-css attribute now that we're post $compile
+                                //# If this $element isn't a LINK/STYLE tag, we can re-add the .config.attr now that we're post $compile
                                 //#     NOTE: We really don't need to do this, but it is what the user expects to be in place so it's good practice
                                 //#     NOTE: This is the Yang to .compileCallback's Yin
                                 if (oRecompiledCacheEntry.tag === "*") {
-                                    oCacheEntry.dom.setAttribute(oRecompiledCacheEntry.options.attr, oRecompiledCacheEntry[$baseServices.config.attr]);
+                                    oCacheEntry.dom.setAttribute(oRecompiledCacheEntry.options.attr, oRecompiledCacheEntry.options.a);
                                 }
 
                                 //# .resolve our oParentOptions (if any) then .processCacheOptions for both the oParentOptions and the oRecompiledCacheEntry
