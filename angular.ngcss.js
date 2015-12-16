@@ -1,5 +1,5 @@
 /*
-ngCss v0.9j (kk) http://opensourcetaekwondo.com/ngcss/
+ngCss v0.9k (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
 Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
@@ -1326,8 +1326,17 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
 
                 //# Safely warns the user on the console
                 warn: function (sMessage, _element, vError) {
-                    var c = console || function () { }; //# code-golf
-                    (c.warn || c.log || c)($baseServices.config.attr + ": " + sMessage, _element, vError);
+                    try {
+                        var c = console || function () { }; //# code-golf
+                        sMessage = $baseServices.config.attr + ": " + sMessage;
+                        
+                        if ($baseServices.is.fn(c.warn)) {
+                            c.warn(sErrorMessage, _element, vError);
+                        }
+                        else if ($baseServices.is.fn(c.log)) {
+                            c.warn(sErrorMessage, _element, vError);
+                        }
+                    } catch (e) {}
                 } //# warn
             } //# $baseServices
         ;
