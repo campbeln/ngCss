@@ -2,7 +2,7 @@
 ngCss v0.9k (kk) http://opensourcetaekwondo.com/ngcss/
 (c) 2014-2015 Nick Campbell ngcssdev@gmail.com
 License: MIT
-Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functionality present in LESS and Sass.
+Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color functiocnality present in LESS and Sass.
 */
 (function (angular, _window, _document, fnCjs3, fnEvalerFactory, fnLocalEvaler, fnUseStrictEvaler, fnSandboxEvalerFactory) {
     //# ngCss functionality
@@ -1331,10 +1331,10 @@ Add in a library such as Chroma (https://github.com/gka/chroma.js) to get color 
                         sMessage = $baseServices.config.attr + ": " + sMessage;
                         
                         if ($baseServices.is.fn(c.warn)) {
-                            c.warn(sErrorMessage, _element, vError);
+                            c.warn(sMessage, _element, vError);
                         }
                         else if ($baseServices.is.fn(c.log)) {
-                            c.warn(sErrorMessage, _element, vError);
+                            c.warn(sMessage, _element, vError);
                         }
                     } catch (e) {}
                 } //# warn
